@@ -1,0 +1,400 @@
+---
+title: "Practical Examples and Use Cases"
+author: "Priyanshu Tiwari"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Practical Examples and Use Cases}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width = 7,
+  fig.height = 5
+)
+library(AsianOption)
+```
+
+## Introduction
+
+This vignette demonstrates practical applications of the `AsianOption` package
+through detailed examples.
+
+## Example 1: Basic Geometric Asian Option
+
+```{r}
+# Standard parameters
+S0 <- 100      # Initial stock price
+K <- 100       # At-the-money strike
+r <- 1.05      # 5% risk-free rate
+u <- 1.2       # 20% up move
+d <- 0.8       # 20% down move
+lambda <- 0.1  # Price impact
+v_u <- 1       # Unit hedging volume
+v_d <- 1
+n <- 5         # 5 time steps
+
+price <- price_geometric_asian(S0, K, r, u, d, lambda, v_u, v_d, n)
+cat("Geometric Asian option price:", round(price, 4), "\n")
+```
+
+## Example 2: Impact of Price Impact Parameter
+
+Compare prices with varying $\lambda$:
+
+```{r}
+lambdas <- seq(0, 0.5, by = 0.05)
+prices <- sapply(lambdas, function(lam) {
+  price_geometric_asian(100, 100, 1.05, 1.2, 0.8, lam, 1, 1, 5)
+})
+
+plot(lambdas, prices, type = "b",
+     xlab = expression(lambda~" (Price Impact)"),
+     ylab = "Option Price",
+     main = "Effect of Price Impact on Geometric Asian Option",
+     col = "blue", pch = 19)
+grid()
+```
+
+**Interpretation**: Higher price impact increases option value because hedging
+amplifies price movements, increasing volatility.
+
+## Example 3: Strike Price Sensitivity
+
+```{r}
+strikes <- seq(80, 120, by = 5)
+prices <- sapply(strikes, function(K) {
+  price_geometric_asian(100, K, 1.05, 1.2, 0.8, 0.1, 1, 1, 5)
+})
+
+plot(strikes, prices, type = "b",
+     xlab = "Strike Price K",
+     ylab = "Option Price",
+     main = "Geometric Asian Option Prices vs Strike",
+     col = "darkgreen", pch = 19)
+abline(v = 100, lty = 2, col = "gray")
+text(100, max(prices) * 0.9, "ATM", pos = 4)
+grid()
+```
+
+## Example 4: Arithmetic Asian Bounds
+
+```{r}
+bounds <- arithmetic_asian_bounds(100, 100, 1.05, 1.2, 0.8, 0.1, 1, 1, 5)
+
+cat("Arithmetic Asian Option Bounds:\n")
+cat("  Lower:", round(bounds$lower_bound, 4), "\n")
+cat("  Upper:", round(bounds$upper_bound, 4), "\n")
+cat("  Midpoint:", round(mean(c(bounds$lower_bound, bounds$upper_bound)), 4), "\n")
+cat("  Spread:", round(bounds$upper_bound - bounds$lower_bound, 4), "\n")
+```
+
+### Tightness of Bounds
+
+```{r}
+n_values <- 1:10
+bound_spreads <- sapply(n_values, function(n) {
+  b <- arithmetic_asian_bounds(100, 100, 1.05, 1.2, 0.8, 0.1, 1, 1, n)
+  b$upper_bound - b$lower_bound
+})
+
+plot(n_values, bound_spreads, type = "b",
+     xlab = "Number of Time Steps (n)",
+     ylab = "Bound Spread",
+     main = "Width of Arithmetic Asian Bounds vs n",
+     col = "red", pch = 19)
+grid()
+```
+
+**Observation**: Bound spread increases with $n$ due to growing divergence
+between arithmetic and geometric means.
+
+## Example 5: Comparison With and Without Price Impact
+
+```{r}
+n_range <- 1:8
+
+prices_no_impact <- sapply(n_range, function(n) {
+  price_geometric_asian(100, 100, 1.05, 1.2, 0.8, 0, 0, 0, n)
+})
+
+prices_with_impact <- sapply(n_range, function(n) {
+  price_geometric_asian(100, 100, 1.05, 1.2, 0.8, 0.1, 1, 1, n)
+})
+
+plot(n_range, prices_with_impact, type = "b", col = "blue", pch = 19,
+     xlab = "Time Steps (n)", ylab = "Option Price",
+     main = "Impact of Price Impact on Option Value",
+     ylim = range(c(prices_no_impact, prices_with_impact)))
+lines(n_range, prices_no_impact, type = "b", col = "red", pch = 17)
+legend("topright",
+       legend = c("With price impact (λ=0.1)", "No price impact (λ=0)"),
+       col = c("blue", "red"), pch = c(19, 17), lty = 1)
+grid()
+```
+
+## Example 6: Risk-Neutral Probability
+
+```{r}
+# Compute adjusted factors
+factors <- compute_adjusted_factors(u = 1.2, d = 0.8, lambda = 0.1, v_u = 1, v_d = 1)
+p_adj <- compute_p_adj(r = 1.05, u = 1.2, d = 0.8, lambda = 0.1, v_u = 1, v_d = 1)
+
+cat("Adjusted Factors:\n")
+cat("  u_tilde:", round(factors$u_tilde, 4), "\n")
+cat("  d_tilde:", round(factors$d_tilde, 4), "\n")
+cat("  p_adj:  ", round(p_adj, 4), "\n\n")
+
+# Verify no-arbitrage
+cat("No-arbitrage check: d_tilde < r < u_tilde\n")
+cat("  d_tilde =", round(factors$d_tilde, 4), "\n")
+cat("  r  =", 1.05, "\n")
+cat("  u_tilde =", round(factors$u_tilde, 4), "\n")
+cat("  Valid:", check_no_arbitrage(1.05, 1.2, 0.8, 0.1, 1, 1), "\n")
+```
+
+## Example 7: Hedging Volume Sensitivity
+
+```{r}
+v_range <- seq(0, 3, by = 0.25)
+
+prices <- sapply(v_range, function(v) {
+  price_geometric_asian(100, 100, 1.05, 1.2, 0.8, 0.1, v, v, 5)
+})
+
+plot(v_range, prices, type = "b",
+     xlab = "Hedging Volume (v_u = v_d)",
+     ylab = "Option Price",
+     main = "Effect of Hedging Volume",
+     col = "purple", pch = 19)
+grid()
+```
+
+## Example 8: Convergence Analysis (Exact vs Monte Carlo)
+
+```{r}
+# Compute prices for increasing n
+# Use exact method for n <= 20, Monte Carlo for n > 20
+n_seq <- c(1, 2, 3, 5, 7, 10, 12, 15, 18, 20, 25, 30, 40, 50)
+prices <- numeric(length(n_seq))
+methods <- character(length(n_seq))
+
+for (i in seq_along(n_seq)) {
+  n <- n_seq[i]
+  if (n <= 20) {
+    prices[i] <- price_geometric_asian(
+      100, 100, 1.05, 1.2, 0.8, 0.1, 1, 1, n, method = "exact"
+    )
+    methods[i] <- "Exact"
+  } else {
+    # Use Monte Carlo for large n
+    prices[i] <- price_geometric_asian(
+      100, 100, 1.05, 1.2, 0.8, 0.1, 1, 1, n,
+      method = "mc", n_simulations = 100000, seed = 42
+    )
+    methods[i] <- "MC"
+  }
+}
+
+# Plot with different colors for different methods
+colors <- ifelse(methods == "Exact", "darkblue", "red")
+plot(n_seq, prices, type = "b", pch = 19, col = colors,
+     xlab = "Number of Time Steps (n)",
+     ylab = "Option Price",
+     main = "Convergence: Exact vs Monte Carlo Methods")
+abline(v = 20, lty = 2, col = "gray")
+text(20, max(prices), "Method Transition", pos = 4, cex = 0.8)
+legend("topright",
+       legend = c("Exact (n ≤ 20)", "Monte Carlo (n > 20)"),
+       col = c("darkblue", "red"), pch = 19, lty = 1)
+grid()
+```
+
+**Observation**: The transition from exact to Monte Carlo is seamless, with
+Monte Carlo enabling pricing for much larger n values that would be infeasible
+with exact enumeration.
+
+## Example 8b: Monte Carlo Accuracy Validation
+
+Validate Monte Carlo against exact solution:
+
+```{r}
+# Compare exact vs MC for same parameters
+n_test <- 15  # Small enough for exact method
+
+exact_price <- price_geometric_asian(
+  100, 100, 1.05, 1.2, 0.8, 0.1, 1, 1, n_test, method = "exact"
+)
+
+mc_result <- price_geometric_asian_mc(
+  100, 100, 1.05, 1.2, 0.8, 0.1, 1, 1, n_test,
+  n_simulations = 100000, seed = 42
+)
+
+cat("Exact price:        ", round(exact_price, 6), "\n")
+cat("MC estimate:        ", round(mc_result$price, 6), "\n")
+cat("Difference:         ", round(abs(exact_price - mc_result$price), 6), "\n")
+cat("MC std error:       ", round(mc_result$std_error, 6), "\n")
+cat("Error in std errors:", round(abs(exact_price - mc_result$price) / mc_result$std_error, 2), "\n")
+cat("\nMC is within", round(abs(exact_price - mc_result$price) / mc_result$std_error, 2),
+    "standard errors of exact price\n")
+```
+
+## Example 8c: Large n Pricing (Monte Carlo Only)
+
+Price options with very large n (impossible with exact method):
+
+```{r}
+# These would require 2^50 to 2^100 paths with exact enumeration!
+large_n <- c(50, 75, 100)
+
+cat("Pricing with very large n:\n\n")
+for (n in large_n) {
+  result <- price_geometric_asian_mc(
+    100, 100, 1.05, 1.2, 0.8, 0.1, 1, 1, n,
+    n_simulations = 100000, seed = 42
+  )
+  cat(sprintf("n=%3d: Price = %.4f ± %.4f (95%% CI: [%.4f, %.4f])\n",
+              n, result$price, 1.96 * result$std_error,
+              result$confidence_interval[1], result$confidence_interval[2]))
+}
+```
+
+## Example 9: Moneyness Analysis
+
+```{r}
+# Define moneyness: K/S0
+moneyness <- seq(0.7, 1.3, by = 0.05)
+strikes <- moneyness * 100
+
+prices <- sapply(strikes, function(K) {
+  price_geometric_asian(100, K, 1.05, 1.2, 0.8, 0.1, 1, 1, 5)
+})
+
+plot(moneyness, prices, type = "b",
+     xlab = "Moneyness (K/S0)",
+     ylab = "Option Price",
+     main = "Option Price vs Moneyness",
+     col = "darkred", pch = 19)
+abline(v = 1, lty = 2, col = "gray")
+text(1, max(prices) * 0.8, "ATM", pos = 4)
+grid()
+```
+
+## Example 10: Volatility Surface
+
+```{r fig.width=8, fig.height=6}
+# Create a grid of u and lambda values
+u_vals <- seq(1.1, 1.4, length.out = 10)
+lambda_vals <- seq(0, 0.3, length.out = 10)
+
+# Compute prices for each combination
+price_grid <- outer(u_vals, lambda_vals, function(u, lam) {
+  sapply(1:length(u), function(i) {
+    d_val <- 2 - u[i]  # Keep d = 2 - u for symmetry
+    if (d_val > 0 && d_val < u[i]) {
+      price_geometric_asian(100, 100, 1.05, u[i], d_val, lam[i], 1, 1, 5)
+    } else {
+      NA
+    }
+  })
+})
+
+# Create contour plot
+contour(u_vals, lambda_vals, price_grid,
+        xlab = "Up Factor (u)", ylab = "Price Impact (λ)",
+        main = "Option Price Surface",
+        nlevels = 15, col = rainbow(15))
+```
+
+## Example 11: Time Value Analysis
+
+```{r}
+# Compare intrinsic value vs option value
+strikes <- seq(70, 130, by = 5)
+n_values <- c(1, 3, 5, 10)
+
+# Approximate intrinsic value (S0 - K for deep ITM call)
+intrinsic <- pmax(0, 100 - strikes)
+
+# Plot
+plot(strikes, intrinsic, type = "l", lwd = 2, lty = 2,
+     xlab = "Strike Price", ylab = "Value",
+     main = "Option Value vs Intrinsic Value",
+     ylim = c(0, 40))
+
+colors <- c("blue", "green", "red", "purple")
+for (i in seq_along(n_values)) {
+  prices <- sapply(strikes, function(K) {
+    price_geometric_asian(100, K, 1.05, 1.2, 0.8, 0.1, 1, 1, n_values[i])
+  })
+  lines(strikes, prices, col = colors[i], lwd = 2)
+}
+
+legend("topright",
+       legend = c("Intrinsic", paste("n =", n_values)),
+       col = c("black", colors),
+       lty = c(2, rep(1, length(n_values))),
+       lwd = 2)
+grid()
+```
+
+## Example 12: Asymmetric Hedging Volumes
+
+```{r}
+# Explore asymmetric up/down hedging volumes
+v_u_vals <- seq(0, 2, by = 0.2)
+v_d_vals <- seq(0, 2, by = 0.2)
+
+# Compare symmetric vs asymmetric
+symmetric_prices <- sapply(v_u_vals, function(v) {
+  price_geometric_asian(100, 100, 1.05, 1.2, 0.8, 0.1, v, v, 5)
+})
+
+asymmetric_prices <- sapply(v_u_vals, function(v_u) {
+  # v_d fixed at 0.5
+  price_geometric_asian(100, 100, 1.05, 1.2, 0.8, 0.1, v_u, 0.5, 5)
+})
+
+plot(v_u_vals, symmetric_prices, type = "b", col = "blue", pch = 19,
+     xlab = "Hedging Volume", ylab = "Option Price",
+     main = "Symmetric vs Asymmetric Hedging",
+     ylim = range(c(symmetric_prices, asymmetric_prices)))
+lines(v_u_vals, asymmetric_prices, type = "b", col = "red", pch = 17)
+legend("topleft",
+       legend = c("Symmetric (v_u = v_d)", "Asymmetric (v_d = 0.5)"),
+       col = c("blue", "red"), pch = c(19, 17), lty = 1)
+grid()
+```
+
+## Summary
+
+This vignette demonstrated:
+
+1. Basic option pricing
+2. Sensitivity to price impact
+3. Strike price effects
+4. Arithmetic option bounds
+5. Comparison with/without price impact
+6. Risk-neutral probability computation
+7. Hedging volume effects
+8. **Convergence behavior with exact and Monte Carlo methods**
+   - Automatic method selection
+   - Monte Carlo accuracy validation
+   - Large n pricing (n=50, 75, 100)
+9. Moneyness analysis
+10. Volatility surface visualization
+11. Time value decomposition
+12. Asymmetric hedging scenarios
+
+**Key Insights**:
+- **Exact method**: Optimal for n ≤ 20 (exact, fast)
+- **Monte Carlo**: Essential for n > 20 (fast, accurate)
+- **Automatic selection**: Package seamlessly chooses the best method
+- **Accuracy**: MC typically achieves < 0.5% error with 100,000 simulations
+
+For theoretical details, see `vignette("theory")`.

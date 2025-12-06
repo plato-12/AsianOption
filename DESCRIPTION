@@ -1,0 +1,35 @@
+Package: AsianOption
+Type: Package
+Title: Asian Option Pricing with Price Impact
+Version: 0.1.0
+Date: 2025-12-04
+Authors@R: c(
+    person("Priyanshu", "Tiwari",
+           email = "tiwari.priyanshu.iitk@gmail.com",
+           role = c("aut", "cre"))
+    )
+Description: Implements binomial tree pricing for geometric and arithmetic
+    Asian options incorporating market price impact from hedging activities.
+    Uses the Cox-Ross-Rubinstein ('CRR') model with the replicating portfolio
+    method. Provides exact pricing for geometric Asian options and bounds
+    for arithmetic Asian options based on Jensen's inequality. The price
+    impact mechanism models how hedging volumes affect stock prices, leading
+    to modified risk-neutral probabilities. References: Cox, Ross & Rubinstein
+    (1979) <doi:10.1016/0304-405X(79)90015-1>.
+License: GPL (>= 3) + file LICENSE
+URL: https://github.com/plato-12/AsianOption
+BugReports: https://github.com/plato-12/AsianOption/issues
+Encoding: UTF-8
+Depends:
+    R (>= 4.0.0)
+Imports:
+    Rcpp (>= 1.0.0)
+LinkingTo:
+    Rcpp
+Suggests:
+    testthat (>= 3.0.0),
+    knitr,
+    rmarkdown,
+    covr
+VignetteBuilder: knitr
+RoxygenNote: 7.3.3
