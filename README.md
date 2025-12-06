@@ -43,7 +43,6 @@ price <- price_geometric_asian(
   n = 10         # Time steps
 )
 print(price)
-#> [1] 20.43849
 ```
 
 ### Arithmetic Asian Option Bounds
@@ -56,11 +55,6 @@ bounds <- arithmetic_asian_bounds(
   lambda = 0.1, v_u = 1, v_d = 1, n = 5
 )
 print(bounds)
-#> Arithmetic Asian Option Bounds
-#> ================================
-#> Lower bound (V0_G):  15.811681
-#> Upper bound:         16.234567
-#> Midpoint estimate:   16.023124
 ```
 
 ### Monte Carlo for Large n
@@ -87,27 +81,6 @@ print(mc_result)
 #> 95% CI:      [13.684937, 14.113395]
 #> Simulations: 100000
 ```
-
-## Price Impact Model
-
-The package models hedging-induced price changes:
-
-$$\Delta S = \lambda \cdot v \cdot \text{sign}(\text{trade})$$
-
-This modifies the binomial tree dynamics: - **Adjusted up factor**: $\tilde{u} = u \cdot e^{\lambda v^u}$ - **Adjusted down factor**: $\tilde{d} = d \cdot e^{-\lambda v^d}$ - **Risk-neutral probability**: $p^{adj} = \frac{r - \tilde{d}}{\tilde{u} - \tilde{d}}$
-
-The no-arbitrage condition $\tilde{d} < r < \tilde{u}$ is automatically validated.
-
-## Computational Methods
-
-| Method      | Time Steps | Complexity | Speed     | Accuracy |
-|-------------|------------|------------|-----------|----------|
-| Exact       | n ≤ 20     | O(2\^n)    | Fast      | Exact    |
-| Monte Carlo | n \> 20    | O(M·n)     | Very fast | ±0.5%\*  |
-
-\*With default 100,000 simulations
-
-The package automatically selects the optimal method based on n.
 
 ## Main Functions
 
@@ -176,16 +149,6 @@ vignette("theory", package = "AsianOption")
 vignette("examples", package = "AsianOption")
 ```
 
-## References
-
-**Binomial Model:** Cox, J. C., Ross, S. A., & Rubinstein, M. (1979). Option pricing: A simplified approach. *Journal of Financial Economics*, 7(3), 229-263. [doi:10.1016/0304-405X(79)90015-1](https://doi.org/10.1016/0304-405X(79)90015-1)
-
-## Package Conventions
-
-**Important**: This package uses **gross rates** (multiplicative), not net rates: - Correct: `r = 1.05` for 5% rate - Incorrect: `r = 0.05`
-
-This convention applies to the risk-free rate `r` parameter in all functions.
-
 ## Getting Help
 
 -   Package documentation: `?AsianOption`
@@ -194,4 +157,4 @@ This convention applies to the risk-free rate `r` parameter in all functions.
 
 ## License
 
-GPL (\>= 2)
+GPL (\>= 3)
