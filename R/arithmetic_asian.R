@@ -21,6 +21,9 @@
 #'   path-specific bound. Default is 100000.
 #' @param sample_fraction Numeric. Fraction of total paths to sample (between 0 and 1).
 #'   Default is 0.1 (10\%).
+#' @param sampling_method Character. Sampling method for path-specific bound:
+#'   "uniform" (default) or "truncated_normal". Truncated normal uses mean = (2^n-1)/2
+#'   and sd = sqrt(n), focusing samples around middle paths.
 #'
 #' @details
 #' The arithmetic Asian option has payoff:
@@ -81,7 +84,7 @@
 #'   lambda = 0.1, v_u = 1, v_d = 1, n = 3, option_type = "put"
 #' )
 #'
-#' # Compute with path-specific bound
+#' # Compute with path-specific bound (uniform sampling)
 #' bounds_ps <- arithmetic_asian_bounds(
 #'   S0 = 100, K = 100, r = 1.05, u = 1.2, d = 0.8,
 #'   lambda = 0.1, v_u = 1, v_d = 1, n = 5,
@@ -89,6 +92,16 @@
 #' )
 #'
 #' print(bounds_ps)
+#'
+#' # Compute with path-specific bound using truncated normal sampling
+#' bounds_tn <- arithmetic_asian_bounds(
+#'   S0 = 100, K = 100, r = 1.05, u = 1.2, d = 0.8,
+#'   lambda = 0.1, v_u = 1, v_d = 1, n = 5,
+#'   compute_path_specific = TRUE,
+#'   sampling_method = "truncated_normal"
+#' )
+#'
+#' print(bounds_tn)
 #'
 #' # Estimate arithmetic option price as midpoint of path-specific bounds
 #' if (!is.na(bounds_ps$upper_bound_path_specific)) {
@@ -109,12 +122,14 @@ arithmetic_asian_bounds <- function(S0, K, r, u, d, lambda, v_u, v_d, n,
                                      compute_path_specific = FALSE,
                                      max_sample_size = 100000,
                                      sample_fraction = 0.1,
+                                     sampling_method = "uniform",
                                      validate = TRUE) {
   if (validate) {
     validate_inputs(S0, K, r, u, d, lambda, v_u, v_d, n)
   }
 
   option_type <- match.arg(option_type, c("call", "put"))
+  sampling_method <- match.arg(sampling_method, c("uniform", "truncated_normal"))
 
   if (!is.logical(compute_path_specific)) {
     stop("compute_path_specific must be TRUE or FALSE")
@@ -128,12 +143,90 @@ arithmetic_asian_bounds <- function(S0, K, r, u, d, lambda, v_u, v_d, n,
     stop("sample_fraction must be between 0 and 1")
   }
 
+  # Prepare sampled indices for truncated normal sampling
+  sampled_indices <- NULL
+
+  if (compute_path_specific && sampling_method == "truncated_normal") {
+    # Check if truncnorm package is available
+    if (!requireNamespace("truncnorm", quietly = TRUE)) {
+      stop("Package 'truncnorm' is required for truncated_normal sampling.\n",
+           "Install it with: install.packages('truncnorm')")
+    }
+
+    total_paths <- 2^n
+    desired_sample <- min(max_sample_size, floor(sample_fraction * total_paths))
+    desired_sample <- max(1, desired_sample)
+
+    # Only sample if we don't enumerate all paths
+    if (desired_sample < total_paths) {
+      # Truncated normal parameters: mean = 2^n / 2, sd = sqrt(n)
+      mean_val <- total_paths / 2
+      sd_val <- sqrt(n)
+      lower_bound <- 0
+      upper_bound <- total_paths - 1
+
+      # Sample until we have enough unique indices
+      # For small sd relative to range, we may need many iterations
+      sampled_indices <- integer(0)
+      max_iterations <- 100
+      iteration <- 0
+
+      while (length(sampled_indices) < desired_sample && iteration < max_iterations) {
+        # Sample more points (oversample significantly due to potential duplicates)
+        n_needed <- desired_sample - length(sampled_indices)
+        oversample_factor <- max(10, ceiling(100 / (sd_val + 1)))
+        n_to_sample <- min(n_needed * oversample_factor, total_paths)
+
+        samples <- truncnorm::rtruncnorm(
+          n = n_to_sample,
+          a = lower_bound,
+          b = upper_bound,
+          mean = mean_val,
+          sd = sd_val
+        )
+
+        # Round to integers
+        new_indices <- round(samples)
+
+        # Combine with existing and keep unique
+        sampled_indices <- unique(c(sampled_indices, new_indices))
+
+        # Ensure within bounds
+        sampled_indices <- sampled_indices[sampled_indices >= 0 &
+                                             sampled_indices < total_paths]
+
+        iteration <- iteration + 1
+      }
+
+      # Take only the requested number of samples
+      if (length(sampled_indices) > desired_sample) {
+        sampled_indices <- sampled_indices[1:desired_sample]
+      }
+
+      # If we still don't have enough (very rare), fill with uniform samples
+      if (length(sampled_indices) < desired_sample) {
+        n_more <- desired_sample - length(sampled_indices)
+        all_indices <- 0:(total_paths - 1)
+        available <- setdiff(all_indices, sampled_indices)
+        additional <- sample(available, size = min(n_more, length(available)))
+        sampled_indices <- c(sampled_indices, additional)
+      }
+
+      # Convert to integer vector (0-indexed for C++)
+      sampled_indices <- as.integer(sampled_indices)
+    }
+  }
+
+  # Call C++ function
   result <- arithmetic_asian_bounds_extended_cpp(
     S0, K, r, u, d, lambda, v_u, v_d, n,
-    compute_path_specific, max_sample_size, sample_fraction, option_type
+    compute_path_specific, max_sample_size, sample_fraction, option_type,
+    sampled_indices
   )
 
+  # Add metadata
   result$upper_bound <- result$upper_bound_global
+  result$sampling_method <- sampling_method
 
   class(result) <- c("arithmetic_bounds", "list")
 
