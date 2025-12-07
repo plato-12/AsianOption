@@ -16,7 +16,7 @@
 #' @param option_type Character; either "call" (default) or "put"
 #' @param validate Logical; if TRUE, performs input validation (default TRUE)
 #' @param compute_path_specific Logical. If TRUE, computes the tighter path-specific
-#'   upper bound using all 2^n paths. Default is FALSE.
+#'   upper bound using exact enumeration of all 2^n paths. Default is FALSE.
 #'
 #' @details
 #' The arithmetic Asian option has payoff:
@@ -45,7 +45,8 @@
 #' uses the actual min/max prices along each path. This bound satisfies
 #' \eqn{V_0^G \leq V_0^A \leq} path-specific bound \eqn{\leq} global bound.
 #'
-#' The path-specific bound uses all \eqn{2^n} paths in the binomial tree.
+#' The path-specific bound uses exact enumeration of all \eqn{2^n} paths
+#' in the binomial tree (no sampling or approximation).
 #'
 #' @return List containing:
 #' \describe{
@@ -76,7 +77,7 @@
 #'   lambda = 0.1, v_u = 1, v_d = 1, n = 3, option_type = "put"
 #' )
 #'
-#' # Compute with path-specific bound (uses all 2^n paths)
+#' # Compute with path-specific bound (uses exact enumeration of all 2^n paths)
 #' bounds_ps <- arithmetic_asian_bounds(
 #'   S0 = 100, K = 100, r = 1.05, u = 1.2, d = 0.8,
 #'   lambda = 0.1, v_u = 1, v_d = 1, n = 5,
@@ -113,7 +114,7 @@ arithmetic_asian_bounds <- function(S0, K, r, u, d, lambda, v_u, v_d, n,
     stop("compute_path_specific must be TRUE or FALSE")
   }
 
-  # Call C++ function
+  # Call C++ function with exact enumeration
   result <- arithmetic_asian_bounds_extended_cpp(
     S0, K, r, u, d, lambda, v_u, v_d, n,
     compute_path_specific, option_type
