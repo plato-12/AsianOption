@@ -41,7 +41,7 @@ arithmetic_asian_bounds(
 \item{option_type}{Character; either "call" (default) or "put"}
 
 \item{compute_path_specific}{Logical. If TRUE, computes the tighter path-specific
-upper bound using all 2^n paths. Default is FALSE.}
+upper bound using exact enumeration of all 2^n paths. Default is FALSE.}
 
 \item{validate}{Logical; if TRUE, performs input validation (default TRUE)}
 }
@@ -90,7 +90,8 @@ where \eqn{\rho(\omega) = \exp\left[\frac{(S_M(\omega) - S_m(\omega))^2}{4 S_m(\
 uses the actual min/max prices along each path. This bound satisfies
 \eqn{V_0^G \leq V_0^A \leq} path-specific bound \eqn{\leq} global bound.
 
-The path-specific bound uses all \eqn{2^n} paths in the binomial tree.
+The path-specific bound uses exact enumeration of all \eqn{2^n} paths
+in the binomial tree (no sampling or approximation).
 }
 \examples{
 # Compute basic bounds (global bound only) for call option
@@ -107,7 +108,7 @@ bounds_put <- arithmetic_asian_bounds(
   lambda = 0.1, v_u = 1, v_d = 1, n = 3, option_type = "put"
 )
 
-# Compute with path-specific bound (uses all 2^n paths)
+# Compute with path-specific bound (uses exact enumeration of all 2^n paths)
 bounds_ps <- arithmetic_asian_bounds(
   S0 = 100, K = 100, r = 1.05, u = 1.2, d = 0.8,
   lambda = 0.1, v_u = 1, v_d = 1, n = 5,
