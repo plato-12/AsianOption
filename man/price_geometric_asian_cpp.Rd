@@ -46,13 +46,15 @@ Computes the exact price of a geometric Asian option (call or put) using the
 binomial tree model with price impact from hedging activities.
 }
 \details{
-The function enumerates all 2^n possible price paths and computes:
+The function uses exact enumeration, computing all 2^n possible price paths:
 \itemize{
   \item Geometric average: \eqn{G = (S_0 \cdot S_1 \cdot \ldots \cdot S_n)^{1/(n+1)}}
   \item Call payoff: \eqn{\max(0, G - K)}
   \item Put payoff: \eqn{\max(0, K - G)}
   \item Option value: \eqn{(1/r^n) \cdot \sum_{paths} p^k (1-p)^{(n-k)} \cdot payoff}
 }
+
+This is an exact calculation (no sampling or approximation).
 
 Price impact modifies the up and down factors:
 \itemize{

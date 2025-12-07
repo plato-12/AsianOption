@@ -41,7 +41,7 @@ arithmetic_asian_bounds_cpp <- function(S0, K, r, u, d, lambda, v_u, v_d, n, opt
 #' Compute Arithmetic Asian Bounds with Path-Specific Upper Bound
 #'
 #' Computes lower bound (geometric option) and two upper bounds:
-#' global (using rho*) and path-specific (using sampled paths).
+#' global (using rho*) and path-specific (using all 2^n paths).
 #'
 #' @param S0 Initial stock price
 #' @param K Strike price
@@ -52,9 +52,7 @@ arithmetic_asian_bounds_cpp <- function(S0, K, r, u, d, lambda, v_u, v_d, n, opt
 #' @param v_u Hedging volume on up move
 #' @param v_d Hedging volume on down move
 #' @param n Number of time steps
-#' @param compute_path_specific If TRUE, compute path-specific bound
-#' @param max_sample_size Maximum number of paths to sample (default 100000)
-#' @param sample_fraction Fraction of paths to sample (default 0.1 = 10\%)
+#' @param compute_path_specific If TRUE, compute path-specific bound using all paths
 #' @param option_type Type of option: "call" or "put" (default: "call")
 #'
 #' @return List with components:
@@ -65,12 +63,12 @@ arithmetic_asian_bounds_cpp <- function(S0, K, r, u, d, lambda, v_u, v_d, n, opt
 #'   \item \code{rho_star}: Spread parameter
 #'   \item \code{EQ_G}: Expected geometric average
 #'   \item \code{V0_G}: Geometric option price (same as lower_bound)
-#'   \item \code{n_paths_sampled}: Number of paths sampled
+#'   \item \code{n_paths_used}: Number of paths used (2^n if path-specific computed, 0 otherwise)
 #' }
 #'
 #' @export
-arithmetic_asian_bounds_extended_cpp <- function(S0, K, r, u, d, lambda, v_u, v_d, n, compute_path_specific = FALSE, max_sample_size = 100000L, sample_fraction = 0.1, option_type = "call") {
-    .Call(`_AsianOption_arithmetic_asian_bounds_extended_cpp`, S0, K, r, u, d, lambda, v_u, v_d, n, compute_path_specific, max_sample_size, sample_fraction, option_type)
+arithmetic_asian_bounds_extended_cpp <- function(S0, K, r, u, d, lambda, v_u, v_d, n, compute_path_specific = FALSE, option_type = "call") {
+    .Call(`_AsianOption_arithmetic_asian_bounds_extended_cpp`, S0, K, r, u, d, lambda, v_u, v_d, n, compute_path_specific, option_type)
 }
 
 #' Price European Call Option with Price Impact
@@ -172,6 +170,10 @@ price_european_put_cpp <- function(S0, K, r, u, d, lambda, v_u, v_d, n) {
     .Call(`_AsianOption_price_european_put_cpp`, S0, K, r, u, d, lambda, v_u, v_d, n)
 }
 
+generate_all_paths <- function(n) {
+    .Call(`_AsianOption_generate_all_paths`, n)
+}
+
 #' Price Geometric Asian Option with Price Impact
 #'
 #' Computes the exact price of a geometric Asian option (call or put) using the
@@ -191,13 +193,15 @@ price_european_put_cpp <- function(S0, K, r, u, d, lambda, v_u, v_d, n) {
 #' @return Geometric Asian option price
 #'
 #' @details
-#' The function enumerates all 2^n possible price paths and computes:
+#' The function uses exact enumeration, computing all 2^n possible price paths:
 #' \itemize{
 #'   \item Geometric average: \eqn{G = (S_0 \cdot S_1 \cdot \ldots \cdot S_n)^{1/(n+1)}}
 #'   \item Call payoff: \eqn{\max(0, G - K)}
 #'   \item Put payoff: \eqn{\max(0, K - G)}
 #'   \item Option value: \eqn{(1/r^n) \cdot \sum_{paths} p^k (1-p)^{(n-k)} \cdot payoff}
 #' }
+#'
+#' This is an exact calculation (no sampling or approximation).
 #'
 #' Price impact modifies the up and down factors:
 #' \itemize{
@@ -227,67 +231,6 @@ price_european_put_cpp <- function(S0, K, r, u, d, lambda, v_u, v_d, n) {
 #' @export
 price_geometric_asian_cpp <- function(S0, K, r, u, d, lambda, v_u, v_d, n, option_type = "call") {
     .Call(`_AsianOption_price_geometric_asian_cpp`, S0, K, r, u, d, lambda, v_u, v_d, n, option_type)
-}
-
-#' Price Geometric Asian Option using Monte Carlo Simulation
-#'
-#' Computes the price of a geometric Asian option using Monte Carlo simulation.
-#' This method is more efficient for large n (> 20) compared to exact enumeration.
-#'
-#' @param S0 Initial stock price (positive)
-#' @param K Strike price (positive)
-#' @param r Gross risk-free rate per period (e.g., 1.05 for 5\% rate)
-#' @param u Base up factor in CRR model (e.g., 1.2)
-#' @param d Base down factor in CRR model (e.g., 0.8)
-#' @param lambda Price impact coefficient (non-negative)
-#' @param v_u Hedging volume on up move (non-negative)
-#' @param v_d Hedging volume on down move (non-negative)
-#' @param n Number of time steps (positive integer)
-#' @param n_simulations Number of Monte Carlo paths to simulate (default: 100000)
-#' @param option_type Type of option: "call" or "put" (default: "call")
-#' @param seed Random seed for reproducibility (default: -1 for no seed)
-#'
-#' @return A list containing:
-#' \itemize{
-#'   \item price: Estimated option price
-#'   \item std_error: Standard error of the estimate
-#'   \item n_simulations: Number of simulations used
-#' }
-#'
-#' @details
-#' The Monte Carlo method randomly samples price paths according to the
-#' risk-neutral probability p_adj. For each simulated path:
-#' \itemize{
-#'   \item Generate n Bernoulli(p_adj) random draws for up/down moves
-#'   \item Compute the geometric average of prices along the path
-#'   \item Calculate the payoff: max(0, G - K) for calls or max(0, K - G) for puts
-#' }
-#'
-#' The option price is estimated as the mean of discounted payoffs, with
-#' standard error = sd(payoffs) / sqrt(n_simulations).
-#'
-#' Monte Carlo is recommended for n > 20 where exact enumeration becomes
-#' computationally prohibitive (2^n paths).
-#'
-#' @references
-#' Glasserman, P. (2003). Monte Carlo Methods in Financial Engineering.
-#' Springer.
-#'
-#' @examples
-#' \dontrun{
-#' # Price option with n=25 using Monte Carlo
-#' result <- price_geometric_asian_mc_cpp(
-#'   S0 = 100, K = 100, r = 1.05, u = 1.2, d = 0.8,
-#'   lambda = 0.1, v_u = 1.0, v_d = 1.0, n = 25,
-#'   n_simulations = 100000, option_type = "call", seed = 42
-#' )
-#' print(result$price)
-#' print(result$std_error)
-#' }
-#'
-#' @export
-price_geometric_asian_mc_cpp <- function(S0, K, r, u, d, lambda, v_u, v_d, n, n_simulations = 100000L, option_type = "call", seed = -1L) {
-    .Call(`_AsianOption_price_geometric_asian_mc_cpp`, S0, K, r, u, d, lambda, v_u, v_d, n, n_simulations, option_type, seed)
 }
 
 #' Kemna-Vorst Monte Carlo Simulation for Arithmetic Average Asian Option

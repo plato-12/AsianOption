@@ -15,8 +15,6 @@ arithmetic_asian_bounds_extended_cpp(
   v_d,
   n,
   compute_path_specific = FALSE,
-  max_sample_size = 100000L,
-  sample_fraction = 0.1,
   option_type = "call"
 )
 }
@@ -39,11 +37,7 @@ arithmetic_asian_bounds_extended_cpp(
 
 \item{n}{Number of time steps}
 
-\item{compute_path_specific}{If TRUE, compute path-specific bound}
-
-\item{max_sample_size}{Maximum number of paths to sample (default 100000)}
-
-\item{sample_fraction}{Fraction of paths to sample (default 0.1 = 10\%)}
+\item{compute_path_specific}{If TRUE, compute path-specific bound using all paths}
 
 \item{option_type}{Type of option: "call" or "put" (default: "call")}
 }
@@ -56,10 +50,10 @@ List with components:
   \item \code{rho_star}: Spread parameter
   \item \code{EQ_G}: Expected geometric average
   \item \code{V0_G}: Geometric option price (same as lower_bound)
-  \item \code{n_paths_sampled}: Number of paths sampled
+  \item \code{n_paths_used}: Number of paths used (2^n if path-specific computed, 0 otherwise)
 }
 }
 \description{
 Computes lower bound (geometric option) and two upper bounds:
-global (using rho*) and path-specific (using sampled paths).
+global (using rho*) and path-specific (using all 2^n paths).
 }

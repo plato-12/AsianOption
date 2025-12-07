@@ -3,8 +3,6 @@
 #include <vector>
 #include <cmath>
 #include <algorithm>
-#include <random>
-#include <set>
 
 // External function from geometric_asian.cpp
 std::vector<std::vector<int>> generate_all_paths(int n);
@@ -104,18 +102,6 @@ Rcpp::List arithmetic_asian_bounds_cpp(
     );
 }
 
-// Convert integer index to binary path
-// @param idx Path index (0 to 2^n - 1)
-// @param n Number of steps
-// @return Vector of 0s and 1s representing the path
-std::vector<int> index_to_path(int idx, int n) {
-    std::vector<int> path(n);
-    for (int j = 0; j < n; j++) {
-        path[j] = (idx >> j) & 1;  // Extract j-th bit
-    }
-    return path;
-}
-
 // Compute path-specific rho parameter
 // @param prices Vector of stock prices along the path
 // @return rho(omega) = exp((S_M - S_m)^2 / (4 * S_m * S_M))
@@ -131,10 +117,11 @@ double compute_path_rho(const std::vector<double>& prices) {
     return std::exp(spread);
 }
 
+
 //' Compute Arithmetic Asian Bounds with Path-Specific Upper Bound
 //'
 //' Computes lower bound (geometric option) and two upper bounds:
-//' global (using rho*) and path-specific (using sampled paths).
+//' global (using rho*) and path-specific (using all 2^n paths).
 //'
 //' @param S0 Initial stock price
 //' @param K Strike price
@@ -145,9 +132,7 @@ double compute_path_rho(const std::vector<double>& prices) {
 //' @param v_u Hedging volume on up move
 //' @param v_d Hedging volume on down move
 //' @param n Number of time steps
-//' @param compute_path_specific If TRUE, compute path-specific bound
-//' @param max_sample_size Maximum number of paths to sample (default 100000)
-//' @param sample_fraction Fraction of paths to sample (default 0.1 = 10\%)
+//' @param compute_path_specific If TRUE, compute path-specific bound using all paths
 //' @param option_type Type of option: "call" or "put" (default: "call")
 //'
 //' @return List with components:
@@ -158,7 +143,7 @@ double compute_path_rho(const std::vector<double>& prices) {
 //'   \item \code{rho_star}: Spread parameter
 //'   \item \code{EQ_G}: Expected geometric average
 //'   \item \code{V0_G}: Geometric option price (same as lower_bound)
-//'   \item \code{n_paths_sampled}: Number of paths sampled
+//'   \item \code{n_paths_used}: Number of paths used (2^n if path-specific computed, 0 otherwise)
 //' }
 //'
 //' @export
@@ -167,8 +152,6 @@ Rcpp::List arithmetic_asian_bounds_extended_cpp(
     double S0, double K, double r, double u, double d,
     double lambda, double v_u, double v_d, int n,
     bool compute_path_specific = false,
-    int max_sample_size = 100000,
-    double sample_fraction = 0.1,
     std::string option_type = "call"
 ) {
     if (option_type != "call" && option_type != "put") {
@@ -220,77 +203,32 @@ Rcpp::List arithmetic_asian_bounds_extended_cpp(
     double upper_bound_global = lower_bound + discount * (rho_star - 1.0) * EQ_G;
 
     double upper_bound_path_specific = NA_REAL;
-    int n_paths_sampled = 0;
+    long long n_paths_used = 0;
 
     if (compute_path_specific) {
-        long long total_paths = 1LL << n;
+        n_paths_used = all_paths.size();
+        double sum_path_specific = 0.0;
 
-        long long desired_sample = (long long)(sample_fraction * total_paths);
-        n_paths_sampled = std::min((long long)max_sample_size, desired_sample);
-        n_paths_sampled = std::max(1, n_paths_sampled);
+        for (const auto& path : all_paths) {
+            std::vector<double> prices = generate_price_path(S0, path,
+                                                             factors.u_tilde,
+                                                             factors.d_tilde);
 
-        if (n_paths_sampled >= total_paths) {
-            n_paths_sampled = total_paths;
-            double sum_path_specific = 0.0;
+            double G = geometric_mean(prices);
+            double rho_omega = compute_path_rho(prices);
 
-            for (const auto& path : all_paths) {
-                std::vector<double> prices = generate_price_path(S0, path,
-                                                                 factors.u_tilde,
-                                                                 factors.d_tilde);
-
-                double G = geometric_mean(prices);
-                double rho_omega = compute_path_rho(prices);
-
-                int n_ups = 0;
-                for (int move : path) {
-                    if (move == 1) n_ups++;
-                }
-
-                double path_prob = std::pow(factors.p_adj, n_ups) *
-                                  std::pow(1.0 - factors.p_adj, n - n_ups);
-
-                sum_path_specific += path_prob * (rho_omega - 1.0) * G;
+            int n_ups = 0;
+            for (int move : path) {
+                if (move == 1) n_ups++;
             }
 
-            upper_bound_path_specific = lower_bound + discount * sum_path_specific;
+            double path_prob = std::pow(factors.p_adj, n_ups) *
+                              std::pow(1.0 - factors.p_adj, n - n_ups);
 
-        } else {
-            std::random_device rd;
-            std::mt19937 gen(rd());
-
-            std::set<int> sampled_indices;
-            std::uniform_int_distribution<> dis(0, total_paths - 1);
-
-            while ((int)sampled_indices.size() < n_paths_sampled) {
-                sampled_indices.insert(dis(gen));
-            }
-
-            double sum_path_specific = 0.0;
-
-            for (int idx : sampled_indices) {
-                std::vector<int> path = index_to_path(idx, n);
-
-                std::vector<double> prices = generate_price_path(S0, path,
-                                                                 factors.u_tilde,
-                                                                 factors.d_tilde);
-
-                double G = geometric_mean(prices);
-                double rho_omega = compute_path_rho(prices);
-
-                int n_ups = 0;
-                for (int move : path) {
-                    if (move == 1) n_ups++;
-                }
-
-                double path_prob = std::pow(factors.p_adj, n_ups) *
-                                  std::pow(1.0 - factors.p_adj, n - n_ups);
-
-                sum_path_specific += path_prob * (rho_omega - 1.0) * G;
-            }
-
-            double scaling = (double)total_paths / (double)n_paths_sampled;
-            upper_bound_path_specific = lower_bound + discount * scaling * sum_path_specific;
+            sum_path_specific += path_prob * (rho_omega - 1.0) * G;
         }
+
+        upper_bound_path_specific = lower_bound + discount * sum_path_specific;
     }
 
     return Rcpp::List::create(
@@ -300,6 +238,6 @@ Rcpp::List arithmetic_asian_bounds_extended_cpp(
         Rcpp::Named("rho_star") = rho_star,
         Rcpp::Named("EQ_G") = EQ_G,
         Rcpp::Named("V0_G") = lower_bound,
-        Rcpp::Named("n_paths_sampled") = n_paths_sampled
+        Rcpp::Named("n_paths_used") = n_paths_used
     );
 }

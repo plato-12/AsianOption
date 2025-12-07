@@ -16,8 +16,6 @@ arithmetic_asian_bounds(
   n,
   option_type = "call",
   compute_path_specific = FALSE,
-  max_sample_size = 1e+05,
-  sample_fraction = 0.1,
   validate = TRUE
 )
 }
@@ -43,13 +41,7 @@ arithmetic_asian_bounds(
 \item{option_type}{Character; either "call" (default) or "put"}
 
 \item{compute_path_specific}{Logical. If TRUE, computes the tighter path-specific
-upper bound by sampling paths. Default is FALSE.}
-
-\item{max_sample_size}{Integer. Maximum number of paths to sample when computing
-path-specific bound. Default is 100000.}
-
-\item{sample_fraction}{Numeric. Fraction of total paths to sample (between 0 and 1).
-Default is 0.1 (10\%).}
+upper bound using all 2^n paths. Default is FALSE.}
 
 \item{validate}{Logical; if TRUE, performs input validation (default TRUE)}
 }
@@ -63,7 +55,7 @@ List containing:
   \item{rho_star}{Spread parameter \eqn{\rho^*}}
   \item{EQ_G}{Expected geometric average under risk-neutral measure}
   \item{V0_G}{Geometric Asian option price (same as lower_bound)}
-  \item{n_paths_sampled}{Number of paths sampled for path-specific bound (0 if not computed)}
+  \item{n_paths_used}{Number of paths used for path-specific bound (2^n if computed, 0 otherwise)}
 }
 }
 \description{
@@ -98,8 +90,7 @@ where \eqn{\rho(\omega) = \exp\left[\frac{(S_M(\omega) - S_m(\omega))^2}{4 S_m(\
 uses the actual min/max prices along each path. This bound satisfies
 \eqn{V_0^G \leq V_0^A \leq} path-specific bound \eqn{\leq} global bound.
 
-For large \eqn{n}, the path-specific bound is estimated via random sampling
-of paths to maintain computational efficiency.
+The path-specific bound uses all \eqn{2^n} paths in the binomial tree.
 }
 \examples{
 # Compute basic bounds (global bound only) for call option
@@ -116,7 +107,7 @@ bounds_put <- arithmetic_asian_bounds(
   lambda = 0.1, v_u = 1, v_d = 1, n = 3, option_type = "put"
 )
 
-# Compute with path-specific bound
+# Compute with path-specific bound (uses all 2^n paths)
 bounds_ps <- arithmetic_asian_bounds(
   S0 = 100, K = 100, r = 1.05, u = 1.2, d = 0.8,
   lambda = 0.1, v_u = 1, v_d = 1, n = 5,

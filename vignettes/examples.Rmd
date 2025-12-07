@@ -174,95 +174,31 @@ plot(v_range, prices, type = "b",
 grid()
 ```
 
-## Example 8: Convergence Analysis (Exact vs Monte Carlo)
+## Example 8: Convergence Analysis
 
 ```{r}
-# Compute prices for increasing n
-# Use exact method for n <= 20, Monte Carlo for n > 20
-n_seq <- c(1, 2, 3, 5, 7, 10, 12, 15, 18, 20, 25, 30, 40, 50)
+# Compute prices for increasing n using exact enumeration
+n_seq <- c(1, 2, 3, 5, 7, 10, 12, 15, 18, 20)
 prices <- numeric(length(n_seq))
-methods <- character(length(n_seq))
 
 for (i in seq_along(n_seq)) {
   n <- n_seq[i]
-  if (n <= 20) {
-    prices[i] <- price_geometric_asian(
-      100, 100, 1.05, 1.2, 0.8, 0.1, 1, 1, n, method = "exact"
-    )
-    methods[i] <- "Exact"
-  } else {
-    # Use Monte Carlo for large n
-    prices[i] <- price_geometric_asian(
-      100, 100, 1.05, 1.2, 0.8, 0.1, 1, 1, n,
-      method = "mc", n_simulations = 100000, seed = 42
-    )
-    methods[i] <- "MC"
-  }
+  prices[i] <- price_geometric_asian(
+    100, 100, 1.05, 1.2, 0.8, 0.1, 1, 1, n
+  )
 }
 
-# Plot with different colors for different methods
-colors <- ifelse(methods == "Exact", "darkblue", "red")
-plot(n_seq, prices, type = "b", pch = 19, col = colors,
+# Plot convergence
+plot(n_seq, prices, type = "b", pch = 19, col = "darkblue",
      xlab = "Number of Time Steps (n)",
      ylab = "Option Price",
-     main = "Convergence: Exact vs Monte Carlo Methods")
-abline(v = 20, lty = 2, col = "gray")
-text(20, max(prices), "Method Transition", pos = 4, cex = 0.8)
-legend("topright",
-       legend = c("Exact (n ≤ 20)", "Monte Carlo (n > 20)"),
-       col = c("darkblue", "red"), pch = 19, lty = 1)
+     main = "Price Convergence with Increasing n (Exact Enumeration)")
 grid()
 ```
 
-**Observation**: The transition from exact to Monte Carlo is seamless, with
-Monte Carlo enabling pricing for much larger n values that would be infeasible
-with exact enumeration.
-
-## Example 8b: Monte Carlo Accuracy Validation
-
-Validate Monte Carlo against exact solution:
-
-```{r}
-# Compare exact vs MC for same parameters
-n_test <- 15  # Small enough for exact method
-
-exact_price <- price_geometric_asian(
-  100, 100, 1.05, 1.2, 0.8, 0.1, 1, 1, n_test, method = "exact"
-)
-
-mc_result <- price_geometric_asian_mc(
-  100, 100, 1.05, 1.2, 0.8, 0.1, 1, 1, n_test,
-  n_simulations = 100000, seed = 42
-)
-
-cat("Exact price:        ", round(exact_price, 6), "\n")
-cat("MC estimate:        ", round(mc_result$price, 6), "\n")
-cat("Difference:         ", round(abs(exact_price - mc_result$price), 6), "\n")
-cat("MC std error:       ", round(mc_result$std_error, 6), "\n")
-cat("Error in std errors:", round(abs(exact_price - mc_result$price) / mc_result$std_error, 2), "\n")
-cat("\nMC is within", round(abs(exact_price - mc_result$price) / mc_result$std_error, 2),
-    "standard errors of exact price\n")
-```
-
-## Example 8c: Large n Pricing (Monte Carlo Only)
-
-Price options with very large n (impossible with exact method):
-
-```{r}
-# These would require 2^50 to 2^100 paths with exact enumeration!
-large_n <- c(50, 75, 100)
-
-cat("Pricing with very large n:\n\n")
-for (n in large_n) {
-  result <- price_geometric_asian_mc(
-    100, 100, 1.05, 1.2, 0.8, 0.1, 1, 1, n,
-    n_simulations = 100000, seed = 42
-  )
-  cat(sprintf("n=%3d: Price = %.4f ± %.4f (95%% CI: [%.4f, %.4f])\n",
-              n, result$price, 1.96 * result$std_error,
-              result$confidence_interval[1], result$confidence_interval[2]))
-}
-```
+**Observation**: The option price converges as n increases. The exact enumeration
+method efficiently handles n up to approximately 20 time steps. For very large n
+(> 25), computation time increases exponentially as it requires enumerating all 2^n paths.
 
 ## Example 9: Moneyness Analysis
 
@@ -382,19 +318,18 @@ This vignette demonstrated:
 5. Comparison with/without price impact
 6. Risk-neutral probability computation
 7. Hedging volume effects
-8. **Convergence behavior with exact and Monte Carlo methods**
-   - Automatic method selection
-   - Monte Carlo accuracy validation
-   - Large n pricing (n=50, 75, 100)
+8. **Convergence behavior with exact enumeration**
+   - Price convergence as n increases
+   - Computational limits for large n
 9. Moneyness analysis
 10. Volatility surface visualization
 11. Time value decomposition
 12. Asymmetric hedging scenarios
 
 **Key Insights**:
-- **Exact method**: Optimal for n ≤ 20 (exact, fast)
-- **Monte Carlo**: Essential for n > 20 (fast, accurate)
-- **Automatic selection**: Package seamlessly chooses the best method
-- **Accuracy**: MC typically achieves < 0.5% error with 100,000 simulations
+- **Exact enumeration**: Computes all 2^n paths for precise pricing
+- **Efficiency**: Optimal for n ≤ 20 (exact, fast)
+- **Scalability**: For n > 25, computation time grows exponentially
+- **No approximation**: All results are exact (no sampling error)
 
 For theoretical details, see `vignette("theory")`.

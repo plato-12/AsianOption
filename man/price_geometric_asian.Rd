@@ -15,10 +15,7 @@ price_geometric_asian(
   v_d,
   n,
   option_type = "call",
-  validate = TRUE,
-  method = "auto",
-  n_simulations = 1e+05,
-  seed = NULL
+  validate = TRUE
 )
 }
 \arguments{
@@ -43,25 +40,14 @@ price_geometric_asian(
 \item{option_type}{Character; either "call" (default) or "put"}
 
 \item{validate}{Logical; if TRUE, performs input validation}
-
-\item{method}{Character; "auto" (default), "exact", or "mc". Auto selects
-exact for n <= 20, Monte Carlo otherwise}
-
-\item{n_simulations}{Number of Monte Carlo simulations (default: 100000).
-Only used when method="mc" or auto-selected}
-
-\item{seed}{Random seed for Monte Carlo (NULL for no seed)}
 }
 \value{
-Geometric Asian option price (numeric). When using Monte Carlo,
-  only the price is returned; use \code{\link{price_geometric_asian_mc}} directly
-  for full MC output including standard error and confidence intervals.
+Geometric Asian option price (numeric).
 }
 \description{
-Computes the price of a geometric Asian option (call or put) using the
+Computes the exact price of a geometric Asian option (call or put) using the
 Cox-Ross-Rubinstein (CRR) binomial model with price impact from
-hedging activities. Automatically selects between exact enumeration (n <= 20)
-and Monte Carlo simulation (n > 20).
+hedging activities. Uses exact enumeration of all 2^n paths.
 }
 \details{
 The geometric Asian option payoff is:
@@ -78,42 +64,28 @@ Price impact modifies the stock dynamics:
   \item Risk-neutral probability: \eqn{p^{eff} = \frac{r - \tilde{d}}{\tilde{u} - \tilde{d}}}
 }
 
-**Method Selection**:
-\itemize{
-  \item \strong{Exact} (n <= 20): Enumerates all \eqn{2^n} paths for exact pricing
-  \item \strong{Monte Carlo} (n > 20): Simulates paths for efficient estimation
-  \item \strong{Auto} (default): Chooses automatically based on n
-}
-
-For n > 20, exact enumeration requires > 1 million paths and becomes slow.
-Monte Carlo provides fast, accurate estimates with quantifiable error bounds.
+This function enumerates all \eqn{2^n} possible paths in the binomial tree
+for exact pricing. For large n, this requires significant computation time
+and memory.
 }
 \examples{
-# Small n: automatic exact method
+# Basic example
 price_geometric_asian(
   S0 = 100, K = 100, r = 1.05, u = 1.2, d = 0.8,
   lambda = 0, v_u = 0, v_d = 0, n = 10
 )
 
-# Large n: automatic Monte Carlo
-\donttest{
+# With price impact
 price_geometric_asian(
   S0 = 100, K = 100, r = 1.05, u = 1.2, d = 0.8,
-  lambda = 0.1, v_u = 1, v_d = 1, n = 30
-)
-}
-
-# Force exact method
-price_geometric_asian(
-  S0 = 100, K = 100, r = 1.05, u = 1.2, d = 0.8,
-  lambda = 0.1, v_u = 1, v_d = 1, n = 5, method = "exact"
+  lambda = 0.1, v_u = 1, v_d = 1, n = 15
 )
 
-# Force Monte Carlo with custom parameters
+# Put option
 price_geometric_asian(
   S0 = 100, K = 100, r = 1.05, u = 1.2, d = 0.8,
-  lambda = 0.1, v_u = 1, v_d = 1, n = 15,
-  method = "mc", n_simulations = 50000, seed = 123
+  lambda = 0.1, v_u = 1, v_d = 1, n = 10,
+  option_type = "put"
 )
 
 }
@@ -123,6 +95,5 @@ Option pricing: A simplified approach.
 \emph{Journal of Financial Economics}, 7(3), 229-263.
 }
 \seealso{
-\code{\link{arithmetic_asian_bounds}}, \code{\link{compute_p_adj}},
-  \code{\link{price_geometric_asian_mc}}
+\code{\link{arithmetic_asian_bounds}}, \code{\link{compute_p_adj}}
 }

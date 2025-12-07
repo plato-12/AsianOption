@@ -206,76 +206,32 @@ Path enumeration scales as $O(2^n)$:
 | 20  | 1,048,576  | \~10 sec     | Exact    |
 | 25  | 33,554,432 | \~5 min      | Too slow |
 
-**Challenge**: For $n > 20$, exact enumeration becomes impractical.
+**Note**: For $n > 25$, exact enumeration becomes computationally intensive
+due to exponential growth in the number of paths (2^n).
 
-### Monte Carlo Method: Simulation
+### Implementation Details
 
-For large $n$, we use Monte Carlo simulation:
-
-**Algorithm**:
-
-1.  For $i = 1, \ldots, M$ (simulations):
-
-    -   Generate random path:
-        $\omega^{(i)} \sim \text{Bernoulli}(p^{adj})^n$
-    -   Compute geometric average: $G(\omega^{(i)})$
-    -   Calculate payoff: $\pi^{(i)} = \max(0, G(\omega^{(i)}) - K)$
-
-2.  Estimate price:
-    $\hat{V}_0 = \frac{1}{r^n} \cdot \frac{1}{M} \sum_{i=1}^M \pi^{(i)}$
-
-3.  Compute standard error: $SE = \frac{\sigma_{\pi}}{r^n \sqrt{M}}$
-
-**Performance**:
-
-| n   | Simulations | Time    | Error (95% CI) |
-|-----|-------------|---------|----------------|
-| 25  | 100,000     | \~0.1 s | ± 0.5%         |
-| 50  | 100,000     | \~0.2 s | ± 0.5%         |
-| 100 | 100,000     | \~0.4 s | ± 0.5%         |
-
-**Convergence**: By the Central Limit Theorem, $SE \propto 1/\sqrt{M}$.
-
-### Automatic Method Selection
-
-The package automatically selects the optimal method:
-
--   **n ≤ 20**: Exact enumeration (fast and exact)
--   **n \> 20**: Monte Carlo (fast with quantifiable error)
+The package uses exact enumeration of all 2^n paths for precise pricing:
 
 ```{r}
-# Auto-selects exact method
+# Small n: very fast
 price_small <- price_geometric_asian(
   S0 = 100, K = 100, r = 1.05, u = 1.2, d = 0.8,
   lambda = 0.1, v_u = 1, v_d = 1, n = 10
 )
-cat("n=10 (exact):", price_small, "\n")
+cat("n=10 (2^10 = 1,024 paths):", price_small, "\n")
 
-# Auto-selects Monte Carlo
+# Larger n: still feasible but slower
 price_large <- price_geometric_asian(
   S0 = 100, K = 100, r = 1.05, u = 1.2, d = 0.8,
-  lambda = 0.1, v_u = 1, v_d = 1, n = 30, seed = 42
+  lambda = 0.1, v_u = 1, v_d = 1, n = 20
 )
-cat("n=30 (MC):", price_large, "\n")
+cat("n=20 (2^20 = 1,048,576 paths):", price_large, "\n")
 ```
 
-### Monte Carlo with Full Output
-
-For detailed analysis, use the direct Monte Carlo function:
-
-```{r}
-mc_result <- price_geometric_asian_mc(
-  S0 = 100, K = 100, r = 1.05, u = 1.2, d = 0.8,
-  lambda = 0.1, v_u = 1, v_d = 1, n = 25,
-  n_simulations = 50000, seed = 123
-)
-
-print(mc_result)
-```
-
-The output includes: - **Price**: Estimated option value - **Std
-Error**: Standard error of the estimate - **95% CI**: Confidence
-interval for the true price - **Simulations**: Number of paths simulated
+**Performance Notes**: The exact method efficiently handles n up to ~20 steps.
+For n > 25, computation time increases significantly as the number of paths
+grows exponentially.
 
 ## References
 
@@ -285,6 +241,3 @@ simplified approach. *Journal of Financial Economics*, 7(3), 229-263.
 Budimir, I., Dragomir, S. S., & Pečarić, J. (2000). Further reverse
 results for Jensen's discrete inequality and applications in information
 theory. *Journal of Inequalities in Pure and Applied Mathematics*, 2(1).
-
-Glasserman, P. (2003). *Monte Carlo Methods in Financial Engineering*.
-Springer.
