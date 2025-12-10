@@ -64,34 +64,20 @@ using the relationship between arithmetic and geometric means (Jensen's
 inequality).
 }
 \details{
-The arithmetic Asian option has payoff:
-\itemize{
-  \item Call: \eqn{V_n = \max(0, A_n - K)}
-  \item Put: \eqn{V_n = \max(0, K - A_n)}
-}
-where \eqn{A_n = \frac{1}{n+1}\sum_{i=0}^{n} S_i}
+Computes rigorous upper and lower bounds for arithmetic Asian options using
+Jensen's inequality. The lower bound is the geometric Asian option price
+(from AM-GM inequality). Two types of upper bounds are available:
 
-Since \eqn{A_n \geq G_n} (AM-GM inequality), we have:
-\deqn{V_0^A \geq V_0^G}
+\strong{Global upper bound:} Uses a worst-case spread parameter applicable
+to all paths.
 
-**Global Upper Bound:**
+\strong{Path-specific upper bound:} Computes tighter bounds by using
+path-specific spread parameters. This requires exact enumeration of all 2^n
+paths in the binomial tree (no sampling or approximation). The path-specific
+bound is typically much tighter than the global bound.
 
-The global upper bound uses the worst-case spread parameter:
-\deqn{V_0^A \leq V_0^G + \frac{(\rho^* - 1)}{r^n} \mathbb{E}^Q[G_n]}
-
-where \eqn{\rho^* = \exp\left[\frac{(\tilde{u}^n - \tilde{d}^n)^2}{4\tilde{u}^n\tilde{d}^n}\right]}
-
-**Path-Specific Upper Bound:**
-
-A tighter bound can be obtained by using path-specific \eqn{\rho(\omega)} values:
-\deqn{V_0^A \leq V_0^G + \frac{1}{r^n}\sum_{\omega} P(\omega) \cdot (\rho(\omega) - 1) \cdot G_n(\omega)}
-
-where \eqn{\rho(\omega) = \exp\left[\frac{(S_M(\omega) - S_m(\omega))^2}{4 S_m(\omega) S_M(\omega)}\right]}
-uses the actual min/max prices along each path. This bound satisfies
-\eqn{V_0^G \leq V_0^A \leq} path-specific bound \eqn{\leq} global bound.
-
-The path-specific bound uses exact enumeration of all \eqn{2^n} paths
-in the binomial tree (no sampling or approximation).
+For detailed mathematical formulations, see the package vignettes and the
+reference paper.
 }
 \examples{
 # Compute basic bounds (global bound only) for call option
@@ -126,10 +112,8 @@ if (!is.na(bounds_ps$upper_bound_path_specific)) {
 
 }
 \references{
-Budimir, I., Dragomir, S. S., & Pecaric, J. (2000).
-Further reverse results for Jensen's discrete inequality and
-applications in information theory.
-\emph{Journal of Inequalities in Pure and Applied Mathematics}, 2(1).
+Tiwari, P., & Majumdar, S. (2024). Asian option valuation under price impact.
+\emph{arXiv preprint}. \doi{10.48550/arXiv.2512.07154}
 }
 \seealso{
 \code{\link{price_geometric_asian}}

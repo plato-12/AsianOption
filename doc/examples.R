@@ -5,25 +5,25 @@ knitr::opts_chunk$set(
   fig.width = 7,
   fig.height = 5
 )
-library(AsianOptPI)
+library(AsianOption)
 
 ## -----------------------------------------------------------------------------
 # Standard parameters
 S0 <- 100      # Initial stock price
 K <- 100       # At-the-money strike
-r <- 1.05      # 5% risk-free rate
+r <- 1.05      # 5% risk-free rate (gross)
 u <- 1.2       # 20% up move
 d <- 0.8       # 20% down move
-lambda <- 0.1  # Price impact
-v_u <- 1       # Unit hedging volume
-v_d <- 1
+lambda <- 0.1  # Price impact coefficient
+v_u <- 1       # Unit hedging volume (up)
+v_d <- 1       # Unit hedging volume (down)
 n <- 5         # 5 time steps
 
 price <- price_geometric_asian(S0, K, r, u, d, lambda, v_u, v_d, n)
-cat("Geometric Asian option price:", round(price, 4), "\n")
+cat("Geometric Asian call price:", round(price, 4), "\n")
 
 ## -----------------------------------------------------------------------------
-lambdas <- seq(0, 0.5, by = 0.05)
+lambdas <- seq(0, 0.3, by = 0.05)
 prices <- sapply(lambdas, function(lam) {
   price_geometric_asian(100, 100, 1.05, 1.2, 0.8, lam, 1, 1, 5)
 })
@@ -32,7 +32,7 @@ plot(lambdas, prices, type = "b",
      xlab = expression(lambda~" (Price Impact)"),
      ylab = "Option Price",
      main = "Effect of Price Impact on Geometric Asian Option",
-     col = "blue", pch = 19)
+     col = "blue", pch = 19, lwd = 2)
 grid()
 
 ## -----------------------------------------------------------------------------
@@ -45,36 +45,55 @@ plot(strikes, prices, type = "b",
      xlab = "Strike Price K",
      ylab = "Option Price",
      main = "Geometric Asian Option Prices vs Strike",
-     col = "darkgreen", pch = 19)
+     col = "darkgreen", pch = 19, lwd = 2)
 abline(v = 100, lty = 2, col = "gray")
 text(100, max(prices) * 0.9, "ATM", pos = 4)
 grid()
 
 ## -----------------------------------------------------------------------------
+# Call option
+call_price <- price_geometric_asian(
+  S0 = 100, K = 100, r = 1.05, u = 1.2, d = 0.8,
+  lambda = 0.1, v_u = 1, v_d = 1, n = 5,
+  option_type = "call"
+)
+
+# Put option
+put_price <- price_geometric_asian(
+  S0 = 100, K = 100, r = 1.05, u = 1.2, d = 0.8,
+  lambda = 0.1, v_u = 1, v_d = 1, n = 5,
+  option_type = "put"
+)
+
+cat("Call price:", round(call_price, 4), "\n")
+cat("Put price:", round(put_price, 4), "\n")
+cat("Call - Put:", round(call_price - put_price, 4), "\n")
+
+## -----------------------------------------------------------------------------
 bounds <- arithmetic_asian_bounds(100, 100, 1.05, 1.2, 0.8, 0.1, 1, 1, 5)
 
 cat("Arithmetic Asian Option Bounds:\n")
-cat("  Lower:", round(bounds$lower_bound, 4), "\n")
-cat("  Upper:", round(bounds$upper_bound, 4), "\n")
-cat("  Midpoint:", round(mean(c(bounds$lower_bound, bounds$upper_bound)), 4), "\n")
-cat("  Spread:", round(bounds$upper_bound - bounds$lower_bound, 4), "\n")
+cat("  Lower (geometric price):", round(bounds$lower_bound, 4), "\n")
+cat("  Upper (global):", round(bounds$upper_bound_global, 4), "\n")
+cat("  Midpoint estimate:", round(mean(c(bounds$lower_bound, bounds$upper_bound_global)), 4), "\n")
 
 ## -----------------------------------------------------------------------------
-n_values <- 1:10
-bound_spreads <- sapply(n_values, function(n) {
-  b <- arithmetic_asian_bounds(100, 100, 1.05, 1.2, 0.8, 0.1, 1, 1, n)
-  b$upper_bound - b$lower_bound
-})
+bounds_ps <- arithmetic_asian_bounds(
+  S0 = 100, K = 100, r = 1.05, u = 1.2, d = 0.8,
+  lambda = 0.1, v_u = 1, v_d = 1, n = 5,
+  compute_path_specific = TRUE
+)
 
-plot(n_values, bound_spreads, type = "b",
-     xlab = "Number of Time Steps (n)",
-     ylab = "Bound Spread",
-     main = "Width of Arithmetic Asian Bounds vs n",
-     col = "red", pch = 19)
-grid()
+print(bounds_ps)
+
+cat("\nBound tightness:\n")
+cat("  Global spread:", round(bounds_ps$upper_bound_global - bounds_ps$lower_bound, 2), "\n")
+cat("  Path-specific spread:", round(bounds_ps$upper_bound_path_specific - bounds_ps$lower_bound, 2), "\n")
+cat("  Improvement:",
+    round((bounds_ps$upper_bound_global - bounds_ps$upper_bound_path_specific), 2), "\n")
 
 ## -----------------------------------------------------------------------------
-n_range <- 1:8
+n_range <- 1:10
 
 prices_no_impact <- sapply(n_range, function(n) {
   price_geometric_asian(100, 100, 1.05, 1.2, 0.8, 0, 0, 0, n)
@@ -84,14 +103,14 @@ prices_with_impact <- sapply(n_range, function(n) {
   price_geometric_asian(100, 100, 1.05, 1.2, 0.8, 0.1, 1, 1, n)
 })
 
-plot(n_range, prices_with_impact, type = "b", col = "blue", pch = 19,
+plot(n_range, prices_with_impact, type = "b", col = "blue", pch = 19, lwd = 2,
      xlab = "Time Steps (n)", ylab = "Option Price",
      main = "Impact of Price Impact on Option Value",
      ylim = range(c(prices_no_impact, prices_with_impact)))
-lines(n_range, prices_no_impact, type = "b", col = "red", pch = 17)
+lines(n_range, prices_no_impact, type = "b", col = "red", pch = 17, lwd = 2)
 legend("topright",
        legend = c("With price impact (λ=0.1)", "No price impact (λ=0)"),
-       col = c("blue", "red"), pch = c(19, 17), lty = 1)
+       col = c("blue", "red"), pch = c(19, 17), lty = 1, lwd = 2)
 grid()
 
 ## -----------------------------------------------------------------------------
@@ -99,20 +118,26 @@ grid()
 factors <- compute_adjusted_factors(u = 1.2, d = 0.8, lambda = 0.1, v_u = 1, v_d = 1)
 p_adj <- compute_p_adj(r = 1.05, u = 1.2, d = 0.8, lambda = 0.1, v_u = 1, v_d = 1)
 
-cat("Adjusted Factors:\n")
-cat("  u_tilde:", round(factors$u_tilde, 4), "\n")
-cat("  d_tilde:", round(factors$d_tilde, 4), "\n")
-cat("  p_adj:  ", round(p_adj, 4), "\n\n")
+# Compare with no impact
+p_standard <- compute_p_adj(r = 1.05, u = 1.2, d = 0.8, lambda = 0, v_u = 0, v_d = 0)
+
+cat("Standard CRR factors:\n")
+cat("  u =", 1.2, ", d =", 0.8, "\n")
+cat("  p =", round(p_standard, 4), "\n\n")
+
+cat("Adjusted factors (with impact):\n")
+cat("  u_tilde =", round(factors$u_tilde, 4), "\n")
+cat("  d_tilde =", round(factors$d_tilde, 4), "\n")
+cat("  p_adj =", round(p_adj, 4), "\n\n")
 
 # Verify no-arbitrage
-cat("No-arbitrage check: d_tilde < r < u_tilde\n")
-cat("  d_tilde =", round(factors$d_tilde, 4), "\n")
-cat("  r  =", 1.05, "\n")
-cat("  u_tilde =", round(factors$u_tilde, 4), "\n")
+cat("No-arbitrage check:\n")
+cat("  d_tilde < r < u_tilde:",
+    factors$d_tilde, "<", 1.05, "<", factors$u_tilde, "\n")
 cat("  Valid:", check_no_arbitrage(1.05, 1.2, 0.8, 0.1, 1, 1), "\n")
 
 ## -----------------------------------------------------------------------------
-v_range <- seq(0, 3, by = 0.25)
+v_range <- seq(0, 2, by = 0.2)
 
 prices <- sapply(v_range, function(v) {
   price_geometric_asian(100, 100, 1.05, 1.2, 0.8, 0.1, v, v, 5)
@@ -122,81 +147,31 @@ plot(v_range, prices, type = "b",
      xlab = "Hedging Volume (v_u = v_d)",
      ylab = "Option Price",
      main = "Effect of Hedging Volume",
-     col = "purple", pch = 19)
+     col = "purple", pch = 19, lwd = 2)
 grid()
 
 ## -----------------------------------------------------------------------------
-# Compute prices for increasing n
-# Use exact method for n <= 20, Monte Carlo for n > 20
-n_seq <- c(1, 2, 3, 5, 7, 10, 12, 15, 18, 20, 25, 30, 40, 50)
-prices <- numeric(length(n_seq))
-methods <- character(length(n_seq))
+v_u_vals <- seq(0, 2, by = 0.2)
 
-for (i in seq_along(n_seq)) {
-  n <- n_seq[i]
-  if (n <= 20) {
-    prices[i] <- price_geometric_asian(
-      100, 100, 1.05, 1.2, 0.8, 0.1, 1, 1, n, method = "exact"
-    )
-    methods[i] <- "Exact"
-  } else {
-    # Use Monte Carlo for large n
-    prices[i] <- price_geometric_asian(
-      100, 100, 1.05, 1.2, 0.8, 0.1, 1, 1, n,
-      method = "mc", n_simulations = 100000, seed = 42
-    )
-    methods[i] <- "MC"
-  }
-}
+# Case 1: Vary v_u, fix v_d = 0.5
+prices_var_u <- sapply(v_u_vals, function(v_u) {
+  price_geometric_asian(100, 100, 1.05, 1.2, 0.8, 0.1, v_u, 0.5, 5)
+})
 
-# Plot with different colors for different methods
-colors <- ifelse(methods == "Exact", "darkblue", "red")
-plot(n_seq, prices, type = "b", pch = 19, col = colors,
-     xlab = "Number of Time Steps (n)",
-     ylab = "Option Price",
-     main = "Convergence: Exact vs Monte Carlo Methods")
-abline(v = 20, lty = 2, col = "gray")
-text(20, max(prices), "Method Transition", pos = 4, cex = 0.8)
-legend("topright",
-       legend = c("Exact (n ≤ 20)", "Monte Carlo (n > 20)"),
-       col = c("darkblue", "red"), pch = 19, lty = 1)
+# Case 2: Symmetric volumes
+prices_symmetric <- sapply(v_u_vals, function(v) {
+  price_geometric_asian(100, 100, 1.05, 1.2, 0.8, 0.1, v, v, 5)
+})
+
+plot(v_u_vals, prices_symmetric, type = "b", col = "blue", pch = 19, lwd = 2,
+     xlab = "Hedging Volume", ylab = "Option Price",
+     main = "Symmetric vs Asymmetric Hedging",
+     ylim = range(c(prices_symmetric, prices_var_u)))
+lines(v_u_vals, prices_var_u, type = "b", col = "red", pch = 17, lwd = 2)
+legend("topleft",
+       legend = c("Symmetric (v_u = v_d)", "Asymmetric (v_d = 0.5)"),
+       col = c("blue", "red"), pch = c(19, 17), lty = 1, lwd = 2)
 grid()
-
-## -----------------------------------------------------------------------------
-# Compare exact vs MC for same parameters
-n_test <- 15  # Small enough for exact method
-
-exact_price <- price_geometric_asian(
-  100, 100, 1.05, 1.2, 0.8, 0.1, 1, 1, n_test, method = "exact"
-)
-
-mc_result <- price_geometric_asian_mc(
-  100, 100, 1.05, 1.2, 0.8, 0.1, 1, 1, n_test,
-  n_simulations = 100000, seed = 42
-)
-
-cat("Exact price:        ", round(exact_price, 6), "\n")
-cat("MC estimate:        ", round(mc_result$price, 6), "\n")
-cat("Difference:         ", round(abs(exact_price - mc_result$price), 6), "\n")
-cat("MC std error:       ", round(mc_result$std_error, 6), "\n")
-cat("Error in std errors:", round(abs(exact_price - mc_result$price) / mc_result$std_error, 2), "\n")
-cat("\nMC is within", round(abs(exact_price - mc_result$price) / mc_result$std_error, 2),
-    "standard errors of exact price\n")
-
-## -----------------------------------------------------------------------------
-# These would require 2^50 to 2^100 paths with exact enumeration!
-large_n <- c(50, 75, 100)
-
-cat("Pricing with very large n:\n\n")
-for (n in large_n) {
-  result <- price_geometric_asian_mc(
-    100, 100, 1.05, 1.2, 0.8, 0.1, 1, 1, n,
-    n_simulations = 100000, seed = 42
-  )
-  cat(sprintf("n=%3d: Price = %.4f ± %.4f (95%% CI: [%.4f, %.4f])\n",
-              n, result$price, 1.96 * result$std_error,
-              result$confidence_interval[1], result$confidence_interval[2]))
-}
 
 ## -----------------------------------------------------------------------------
 # Define moneyness: K/S0
@@ -211,85 +186,110 @@ plot(moneyness, prices, type = "b",
      xlab = "Moneyness (K/S0)",
      ylab = "Option Price",
      main = "Option Price vs Moneyness",
-     col = "darkred", pch = 19)
+     col = "darkred", pch = 19, lwd = 2)
 abline(v = 1, lty = 2, col = "gray")
 text(1, max(prices) * 0.8, "ATM", pos = 4)
 grid()
 
-## ----fig.width=8, fig.height=6------------------------------------------------
-# Create a grid of u and lambda values
-u_vals <- seq(1.1, 1.4, length.out = 10)
-lambda_vals <- seq(0, 0.3, length.out = 10)
+## -----------------------------------------------------------------------------
+n_vals <- seq(5, 15, by = 2)
 
-# Compute prices for each combination
-price_grid <- outer(u_vals, lambda_vals, function(u, lam) {
-  sapply(1:length(u), function(i) {
-    d_val <- 2 - u[i]  # Keep d = 2 - u for symmetry
-    if (d_val > 0 && d_val < u[i]) {
-      price_geometric_asian(100, 100, 1.05, u[i], d_val, lam[i], 1, 1, 5)
-    } else {
-      NA
-    }
-  })
+# European options (path-independent)
+euro_prices <- sapply(n_vals, function(n) {
+  price_european_call(100, 100, 1.05, 1.2, 0.8, 0.1, 1, 1, n)
 })
 
-# Create contour plot
-contour(u_vals, lambda_vals, price_grid,
-        xlab = "Up Factor (u)", ylab = "Price Impact (λ)",
-        main = "Option Price Surface",
-        nlevels = 15, col = rainbow(15))
+# Asian options (path-dependent)
+asian_prices <- sapply(n_vals, function(n) {
+  price_geometric_asian(100, 100, 1.05, 1.2, 0.8, 0.1, 1, 1, n)
+})
+
+plot(n_vals, euro_prices, type = "b", col = "blue", pch = 19, lwd = 2,
+     xlab = "Time Steps (n)", ylab = "Option Price",
+     main = "European vs Asian Options",
+     ylim = range(c(euro_prices, asian_prices)))
+lines(n_vals, asian_prices, type = "b", col = "orange", pch = 17, lwd = 2)
+legend("topright",
+       legend = c("European Call", "Geometric Asian Call"),
+       col = c("blue", "orange"), pch = c(19, 17), lty = 1, lwd = 2)
+grid()
+
+cat("\nAt n=10:\n")
+cat("  European:", round(euro_prices[which(n_vals == 11)], 2), "\n")
+cat("  Asian:", round(asian_prices[which(n_vals == 11)], 2), "\n")
 
 ## -----------------------------------------------------------------------------
-# Compare intrinsic value vs option value
-strikes <- seq(70, 130, by = 5)
-n_values <- c(1, 3, 5, 10)
+n_seq <- c(2, 3, 5, 7, 10, 12, 15)
+prices <- numeric(length(n_seq))
 
-# Approximate intrinsic value (S0 - K for deep ITM call)
-intrinsic <- pmax(0, 100 - strikes)
-
-# Plot
-plot(strikes, intrinsic, type = "l", lwd = 2, lty = 2,
-     xlab = "Strike Price", ylab = "Value",
-     main = "Option Value vs Intrinsic Value",
-     ylim = c(0, 40))
-
-colors <- c("blue", "green", "red", "purple")
-for (i in seq_along(n_values)) {
-  prices <- sapply(strikes, function(K) {
-    price_geometric_asian(100, K, 1.05, 1.2, 0.8, 0.1, 1, 1, n_values[i])
-  })
-  lines(strikes, prices, col = colors[i], lwd = 2)
+for (i in seq_along(n_seq)) {
+  n <- n_seq[i]
+  prices[i] <- price_geometric_asian(
+    100, 100, 1.05, 1.2, 0.8, 0.1, 1, 1, n
+  )
 }
 
-legend("topright",
-       legend = c("Intrinsic", paste("n =", n_values)),
-       col = c("black", colors),
-       lty = c(2, rep(1, length(n_values))),
-       lwd = 2)
+plot(n_seq, prices, type = "b", pch = 19, col = "darkblue", lwd = 2,
+     xlab = "Number of Time Steps (n)",
+     ylab = "Option Price",
+     main = "Price Convergence with Increasing n (Exact Enumeration)")
+grid()
+
+# Show the prices
+result_df <- data.frame(
+  n = n_seq,
+  Paths = 2^n_seq,
+  Price = round(prices, 4)
+)
+print(result_df)
+
+## -----------------------------------------------------------------------------
+n_values <- 2:8
+global_spreads <- numeric(length(n_values))
+ps_spreads <- numeric(length(n_values))
+
+for (i in seq_along(n_values)) {
+  n <- n_values[i]
+  bounds <- arithmetic_asian_bounds(100, 100, 1.05, 1.2, 0.8, 0.1, 1, 1, n,
+                                     compute_path_specific = TRUE)
+  global_spreads[i] <- bounds$upper_bound_global - bounds$lower_bound
+  ps_spreads[i] <- bounds$upper_bound_path_specific - bounds$lower_bound
+}
+
+plot(n_values, global_spreads, type = "b", col = "red", pch = 19, lwd = 2,
+     xlab = "Number of Time Steps (n)",
+     ylab = "Bound Spread",
+     main = "Arithmetic Asian Bound Spreads vs n",
+     log = "y", ylim = range(c(global_spreads, ps_spreads)))
+lines(n_values, ps_spreads, type = "b", col = "blue", pch = 17, lwd = 2)
+legend("topleft",
+       legend = c("Global Bound", "Path-Specific Bound"),
+       col = c("red", "blue"), pch = c(19, 17), lty = 1, lwd = 2)
 grid()
 
 ## -----------------------------------------------------------------------------
-# Explore asymmetric up/down hedging volumes
-v_u_vals <- seq(0, 2, by = 0.2)
-v_d_vals <- seq(0, 2, by = 0.2)
+# Define scenarios
+scenarios <- list(
+  "No Impact" = list(lambda = 0, v_u = 0, v_d = 0),
+  "Low Impact" = list(lambda = 0.05, v_u = 1, v_d = 1),
+  "Medium Impact" = list(lambda = 0.1, v_u = 1, v_d = 1),
+  "High Impact" = list(lambda = 0.2, v_u = 1, v_d = 1),
+  "Asymmetric" = list(lambda = 0.1, v_u = 1.5, v_d = 0.5)
+)
 
-# Compare symmetric vs asymmetric
-symmetric_prices <- sapply(v_u_vals, function(v) {
-  price_geometric_asian(100, 100, 1.05, 1.2, 0.8, 0.1, v, v, 5)
-})
+n_vals <- 3:10
+results <- matrix(NA, nrow = length(n_vals), ncol = length(scenarios))
+colnames(results) <- names(scenarios)
+rownames(results) <- paste0("n=", n_vals)
 
-asymmetric_prices <- sapply(v_u_vals, function(v_u) {
-  # v_d fixed at 0.5
-  price_geometric_asian(100, 100, 1.05, 1.2, 0.8, 0.1, v_u, 0.5, 5)
-})
+for (j in seq_along(scenarios)) {
+  sc <- scenarios[[j]]
+  for (i in seq_along(n_vals)) {
+    results[i, j] <- price_geometric_asian(
+      100, 100, 1.05, 1.2, 0.8, sc$lambda, sc$v_u, sc$v_d, n_vals[i]
+    )
+  }
+}
 
-plot(v_u_vals, symmetric_prices, type = "b", col = "blue", pch = 19,
-     xlab = "Hedging Volume", ylab = "Option Price",
-     main = "Symmetric vs Asymmetric Hedging",
-     ylim = range(c(symmetric_prices, asymmetric_prices)))
-lines(v_u_vals, asymmetric_prices, type = "b", col = "red", pch = 17)
-legend("topleft",
-       legend = c("Symmetric (v_u = v_d)", "Asymmetric (v_d = 0.5)"),
-       col = c("blue", "red"), pch = c(19, 17), lty = 1)
-grid()
+print(round(results, 2))
 

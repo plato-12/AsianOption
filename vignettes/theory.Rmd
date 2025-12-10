@@ -2,13 +2,15 @@
 title: "Theoretical Background: Asian Options with Price Impact"
 author: "Priyanshu Tiwari"
 date: "`r Sys.Date()`"
-output: rmarkdown::html_vignette
+output:
+  rmarkdown::html_vignette:
+    css: dark-theme.css
 vignette: >
   %\VignetteEncoding{UTF-8}
   %\VignetteIndexEntry{Theoretical Background: Asian Options with Price Impact}
   %\VignetteEngine{knitr::rmarkdown}
-editor_options: 
-  markdown: 
+editor_options:
+  markdown:
     wrap: 72
 ---
 
@@ -24,7 +26,9 @@ library(AsianOption)
 
 This vignette provides the mathematical foundation for pricing Asian
 options with price impact using the Cox-Ross-Rubinstein (CRR) binomial
-model.
+model. The implementation extends the classical CRR framework to account
+for permanent price impact from hedging activities, following the linear
+impact model of Kyle (1985).
 
 ## The CRR Binomial Model
 
@@ -44,16 +48,24 @@ where $r$ is the gross risk-free rate (e.g., $r = 1.05$ for 5%).
 ### Hedging-Induced Price Changes
 
 When market makers hedge options, they must buy or sell the underlying
-stock. Large volumes cause price movements:
+stock. Large volumes cause price movements following the Kyle (1985)
+linear impact model:
 
-$$\Delta S = \lambda \cdot v \cdot \text{sign}(\text{trade})$$
+$$\Delta S = \lambda \cdot v$$
 
-where: - $\lambda$: price impact coefficient - $v$: trading volume -
-sign: +1 for buy, -1 for sell
+where:
+
+-   $\lambda$: price impact coefficient
+-   $v$: net trading volume (positive for buy, negative for sell)
+
+For small impacts, this leads to multiplicative price changes:
+
+$$S_{\text{new}} = S_{\text{old}} \cdot e^{\lambda v}$$
 
 ### Modified Stock Dynamics
 
-Incorporating hedging volumes $v^u$ (up move) and $v^d$ (down move):
+Incorporating hedging volumes $v^u$ (up move) and $v^d$ (down move), the
+stock dynamics become:
 
 $$\begin{aligned}
 \tilde{u} &= u \cdot e^{\lambda v^u} \\
@@ -64,111 +76,14 @@ The adjusted risk-neutral probability becomes:
 
 $$p^{adj} = \frac{r - \tilde{d}}{\tilde{u} - \tilde{d}}$$
 
-## Replicating Portfolio Method
-
-### Fundamental Principle
-
-At any node, we replicate the option using: - $\Delta$ shares of stock -
-$B$ units of bonds
-
-**Replication equations**:
-
-$$\begin{cases}
-\Delta \cdot S \tilde{u} + B \cdot r = V_{up} \\
-\Delta \cdot S \tilde{d} + B \cdot r = V_{down}
-\end{cases}$$
-
-### Solving for the Replicating Portfolio
-
-**Delta (hedge ratio)**:
-
-$$\Delta = \frac{V_{up} - V_{down}}{S(\tilde{u} - \tilde{d})}$$
-
-**Bond position**:
-
-$$B = \frac{V_{down} - \Delta \cdot S \tilde{d}}{r}$$
-
-**Option value**:
-
-$$V = \Delta \cdot S + B = \frac{1}{r}[p^{eff} V_{up} + (1-p^{eff}) V_{down}]$$
-
-## Geometric Asian Options
-
-### Definition
-
-Payoff at maturity:
-
-$$V_n = \max\left(0, G_n - K\right)$$
-
-where the geometric average is:
-
-$$G_n = \left(\prod_{i=0}^{n} S_i\right)^{1/(n+1)}$$
-
-### Path-Dependent Valuation
-
-We must enumerate all $2^n$ paths $\omega \in \{U, D\}^n$:
-
-$$V_0 = \frac{1}{r^n} \sum_{\omega} (p^{eff})^{\#U(\omega)} (1-p^{eff})^{\#D(\omega)} \max(0, G(\omega) - K)$$
-
-### Example: n = 2
-
 ```{r}
-# Price with n = 2
-price_geometric_asian(
-  S0 = 100, K = 100, r = 1.05,
-  u = 1.2, d = 0.8,
-  lambda = 0.1, v_u = 1, v_d = 1,
-  n = 2
-)
-```
+# Example: Compute adjusted factors and probability
+factors <- compute_adjusted_factors(u = 1.2, d = 0.8, lambda = 0.1, v_u = 1, v_d = 1)
+cat("u_tilde:", factors$u_tilde, "\n")
+cat("d_tilde:", factors$d_tilde, "\n")
 
-Four paths: UU, UD, DU, DD
-
--   **Path UU**: $G = S_0 \tilde{u}$
--   **Path UD**: $G = S_0 (\tilde{u}^2 \tilde{d})^{1/3}$
--   **Path DU**: $G = S_0 (\tilde{d}^2 \tilde{u})^{1/3}$
--   **Path DD**: $G = S_0 \tilde{d}$
-
-Note: UD and DU have the same terminal price but **different geometric
-averages**.
-
-## Arithmetic Asian Options
-
-### Definition
-
-Payoff:
-
-$$V_n = \max\left(0, A_n - K\right)$$
-
-where:
-
-$$A_n = \frac{1}{n+1} \sum_{i=0}^{n} S_i$$
-
-### Bounds via Jensen's Inequality
-
-**Lower bound** (AM-GM inequality):
-
-$$A_n \geq G_n \implies V_0^A \geq V_0^G$$
-
-**Upper bound** (reverse AM-GM):
-
-$$V_0^A \leq V_0^G + \frac{(\rho^* - 1)}{r^n} \mathbb{E}^Q[G_n]$$
-
-where:
-
-$$\rho^* = \exp\left[\frac{(\tilde{u}^n - \tilde{d}^n)^2}{4 \tilde{u}^n \tilde{d}^n}\right]$$
-
-### Example
-
-```{r}
-bounds <- arithmetic_asian_bounds(
-  S0 = 100, K = 100, r = 1.05,
-  u = 1.2, d = 0.8,
-  lambda = 0.1, v_u = 1, v_d = 1,
-  n = 3
-)
-
-print(bounds)
+p_adj <- compute_p_adj(r = 1.05, u = 1.2, d = 0.8, lambda = 0.1, v_u = 1, v_d = 1)
+cat("p_adj:", p_adj, "\n")
 ```
 
 ## No-Arbitrage Constraints
@@ -179,9 +94,9 @@ For valid pricing, we require:
 
 $$\tilde{d} < r < \tilde{u}$$
 
-This ensures:
+This ensures the adjusted risk-neutral probability lies in $[0,1]$:
 
-$$0 \leq p^{eff} \leq 1$$
+$$0 \leq p^{adj} \leq 1$$
 
 ### Checking Validity
 
@@ -193,25 +108,172 @@ check_no_arbitrage(r = 1.05, u = 1.2, d = 0.8, lambda = 0.1, v_u = 1, v_d = 1)
 check_no_arbitrage(r = 2.0, u = 1.2, d = 0.8, lambda = 0.1, v_u = 1, v_d = 1)
 ```
 
+## Geometric Asian Options
+
+### Definition
+
+A geometric Asian option has payoff at maturity:
+
+$$V_n = \max\left(0, G_n - K\right) \quad \text{(call)}$$
+$$V_n = \max\left(0, K - G_n\right) \quad \text{(put)}$$
+
+where the geometric average is:
+
+$$G_n = \left(\prod_{i=0}^{n} S_i\right)^{1/(n+1)}$$
+
+### Path-Dependent Valuation
+
+The package uses exact enumeration of all $2^n$ paths $\omega \in \{U, D\}^n$:
+
+$$V_0 = \frac{1}{r^n} \sum_{\omega} (p^{adj})^{\#U(\omega)} (1-p^{adj})^{\#D(\omega)} \max(0, G(\omega) - K)$$
+
+For each path $\omega$, the geometric average is computed from the
+cumulative up/down moves:
+
+$$G(\omega) = S_0 \left(\tilde{u}^{A(\omega)/(n+1)} \tilde{d}^{B(\omega)/(n+1)}\right)$$
+
+where $A(\omega)$ and $B(\omega)$ are the cumulative sums of up and down
+moves along the path.
+
+### Examples
+
+#### Basic Pricing
+
+```{r}
+# Price with n = 5 (no impact)
+price_no_impact <- price_geometric_asian(
+  S0 = 100, K = 100, r = 1.05, u = 1.2, d = 0.8,
+  lambda = 0, v_u = 0, v_d = 0, n = 5
+)
+cat("Price (no impact):", price_no_impact, "\n")
+
+# Price with n = 5 (with impact)
+price_with_impact <- price_geometric_asian(
+  S0 = 100, K = 100, r = 1.05, u = 1.2, d = 0.8,
+  lambda = 0.1, v_u = 1, v_d = 1, n = 5
+)
+cat("Price (with impact):", price_with_impact, "\n")
+cat("Impact effect:", price_with_impact - price_no_impact, "\n")
+```
+
+#### Call vs Put
+
+```{r}
+# Call option
+call_price <- price_geometric_asian(
+  S0 = 100, K = 100, r = 1.05, u = 1.2, d = 0.8,
+  lambda = 0.1, v_u = 1, v_d = 1, n = 5,
+  option_type = "call"
+)
+
+# Put option
+put_price <- price_geometric_asian(
+  S0 = 100, K = 100, r = 1.05, u = 1.2, d = 0.8,
+  lambda = 0.1, v_u = 1, v_d = 1, n = 5,
+  option_type = "put"
+)
+
+cat("Call price:", call_price, "\n")
+cat("Put price:", put_price, "\n")
+```
+
+## Arithmetic Asian Options
+
+### Definition
+
+An arithmetic Asian option has payoff:
+
+$$V_n = \max\left(0, A_n - K\right) \quad \text{(call)}$$
+$$V_n = \max\left(0, K - A_n\right) \quad \text{(put)}$$
+
+where the arithmetic average is:
+
+$$A_n = \frac{1}{n+1} \sum_{i=0}^{n} S_i$$
+
+Since no closed-form solution exists, the package provides rigorous bounds.
+
+### Bounds via Jensen's Inequality
+
+**Lower bound** (AM-GM inequality):
+
+$$A_n \geq G_n \implies V_0^A \geq V_0^G$$
+
+**Global upper bound** (reverse AM-GM):
+
+$$V_0^A \leq V_0^G + \frac{(\rho^* - 1)}{r^n} \mathbb{E}^Q[G_n]$$
+
+where:
+
+$$\rho^* = \exp\left[\frac{(\tilde{u}^n - \tilde{d}^n)^2}{4 \tilde{u}^n \tilde{d}^n}\right]$$
+
+**Path-specific upper bound** (tighter):
+
+$$V_0^A \leq V_0^G + \frac{1}{r^n}\sum_{\omega} P(\omega) \cdot (\rho(\omega) - 1) \cdot G_n(\omega)$$
+
+where $\rho(\omega)$ uses the actual min/max prices along each path:
+
+$$\rho(\omega) = \exp\left[\frac{(S_M(\omega) - S_m(\omega))^2}{4 S_m(\omega) S_M(\omega)}\right]$$
+
+### Examples
+
+#### Global Bounds
+
+```{r}
+# Compute bounds (global bound only)
+bounds_global <- arithmetic_asian_bounds(
+  S0 = 100, K = 100, r = 1.05, u = 1.2, d = 0.8,
+  lambda = 0.1, v_u = 1, v_d = 1, n = 3,
+  compute_path_specific = FALSE
+)
+
+print(bounds_global)
+```
+
+#### Path-Specific Bounds
+
+```{r}
+# Compute bounds with path-specific upper bound (exact enumeration)
+bounds_ps <- arithmetic_asian_bounds(
+  S0 = 100, K = 100, r = 1.05, u = 1.2, d = 0.8,
+  lambda = 0.1, v_u = 1, v_d = 1, n = 5,
+  compute_path_specific = TRUE
+)
+
+print(bounds_ps)
+
+# Estimate price as midpoint
+estimated_price <- mean(c(bounds_ps$lower_bound, bounds_ps$upper_bound_path_specific))
+cat("\nEstimated price (midpoint):", estimated_price, "\n")
+```
+
+#### Put Option Bounds
+
+```{r}
+# Bounds for put option
+bounds_put <- arithmetic_asian_bounds(
+  S0 = 100, K = 100, r = 1.05, u = 1.2, d = 0.8,
+  lambda = 0.1, v_u = 1, v_d = 1, n = 3,
+  option_type = "put"
+)
+
+print(bounds_put)
+```
+
 ## Computational Complexity
 
-### Exact Method: Path Enumeration
+### Exact Path Enumeration
 
-Path enumeration scales as $O(2^n)$:
+The package uses exact enumeration of all $2^n$ paths for precise pricing.
+No approximation or sampling error is introduced.
 
-| n   | Paths      | Approx. Time | Method   |
-|-----|------------|--------------|----------|
-| 10  | 1,024      | \< 1 ms      | Exact    |
-| 15  | 32,768     | \~10 ms      | Exact    |
-| 20  | 1,048,576  | \~10 sec     | Exact    |
-| 25  | 33,554,432 | \~5 min      | Too slow |
+**Computational Cost:**
 
-**Note**: For $n > 25$, exact enumeration becomes computationally intensive
-due to exponential growth in the number of paths (2^n).
-
-### Implementation Details
-
-The package uses exact enumeration of all 2^n paths for precise pricing:
+| n   | Paths      | Approx. Time | Feasibility |
+|-----|------------|--------------|-------------|
+| 10  | 1,024      | < 1 ms       | Very fast   |
+| 15  | 32,768     | ~10 ms       | Fast        |
+| 20  | 1,048,576  | ~1 sec       | Feasible    |
+| 25  | 33,554,432 | ~30 sec      | Slow        |
 
 ```{r}
 # Small n: very fast
@@ -221,23 +283,48 @@ price_small <- price_geometric_asian(
 )
 cat("n=10 (2^10 = 1,024 paths):", price_small, "\n")
 
-# Larger n: still feasible but slower
+# Larger n: still feasible
 price_large <- price_geometric_asian(
+  S0 = 100, K = 100, r = 1.05, u = 1.2, d = 0.8,
+  lambda = 0.1, v_u = 1, v_d = 1, n = 15
+)
+cat("n=15 (2^15 = 32,768 paths):", price_large, "\n")
+```
+
+**Note**: For n > 20, computation time increases significantly. The package
+will warn when n > 20.
+
+### Implementation Details
+
+All core pricing functions are implemented in C++ (via Rcpp) for maximum
+performance:
+
+-   `price_geometric_asian()`: Uses optimized path enumeration
+-   `arithmetic_asian_bounds()`: Computes both global and path-specific bounds
+-   Path-specific bounds use exact enumeration (no Monte Carlo)
+
+## European Options as Special Cases
+
+European options are also supported, and benefit from $O(n)$ rather than
+$O(2^n)$ complexity since they only depend on terminal prices:
+
+```{r}
+# European call with price impact
+euro_call <- price_european_call(
   S0 = 100, K = 100, r = 1.05, u = 1.2, d = 0.8,
   lambda = 0.1, v_u = 1, v_d = 1, n = 20
 )
-cat("n=20 (2^20 = 1,048,576 paths):", price_large, "\n")
-```
+cat("European call:", euro_call, "\n")
 
-**Performance Notes**: The exact method efficiently handles n up to ~20 steps.
-For n > 25, computation time increases significantly as the number of paths
-grows exponentially.
+# European put with price impact
+euro_put <- price_european_put(
+  S0 = 100, K = 100, r = 1.05, u = 1.2, d = 0.8,
+  lambda = 0.1, v_u = 1, v_d = 1, n = 20
+)
+cat("European put:", euro_put, "\n")
+```
 
 ## References
 
-Cox, J. C., Ross, S. A., & Rubinstein, M. (1979). Option pricing: A
-simplified approach. *Journal of Financial Economics*, 7(3), 229-263.
-
-Budimir, I., Dragomir, S. S., & Pečarić, J. (2000). Further reverse
-results for Jensen's discrete inequality and applications in information
-theory. *Journal of Inequalities in Pure and Applied Mathematics*, 2(1).
+Tiwari, P., & Majumdar, S. (2024). Asian option valuation under price impact.
+*arXiv preprint*. [https://doi.org/10.48550/arXiv.2512.07154](https://doi.org/10.48550/arXiv.2512.07154)

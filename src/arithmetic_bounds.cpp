@@ -33,11 +33,10 @@ std::vector<std::vector<int>> generate_all_paths(int n);
 //' }
 //'
 //' @details
-//' Lower bound: \eqn{V_0^A \ge V_0^G} (by AM-GM inequality)
-//'
-//' Upper bound: \eqn{V_0^A \le V_0^G + (rho^* - 1) \cdot E^Q(G_n) / r^n}
-//'
-//' where \eqn{rho^* = \exp((u_{tilde}^n - d_{tilde}^n)^2 / (4 \cdot u_{tilde}^n \cdot d_{tilde}^n))}
+//' Computes rigorous upper and lower bounds using Jensen's inequality and the
+//' AM-GM inequality. The lower bound is the geometric Asian option price, and
+//' the upper bound uses a global spread parameter. See the package vignettes
+//' and reference paper for detailed mathematical formulations.
 //'
 //' @export
 // [[Rcpp::export]]

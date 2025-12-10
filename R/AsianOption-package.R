@@ -14,37 +14,28 @@
 #' }
 #'
 #' @section Price Impact Mechanism:
-#' When market makers hedge options, their trading volume causes price movements:
-#' \deqn{\Delta S = \lambda \cdot v \cdot \text{sign}(\text{trade})}
-#'
-#' This modifies the binomial tree dynamics:
-#' \itemize{
-#'   \item Adjusted up move: \eqn{S \to S \cdot u \cdot e^{\lambda v^u}}
-#'   \item Adjusted down move: \eqn{S \to S \cdot d \cdot e^{-\lambda v^d}}
-#'   \item Risk-neutral probability: \eqn{p^{adj} = \frac{r - \tilde{d}}{\tilde{u} - \tilde{d}}}
-#' }
+#' When market makers hedge options, their trading volume causes price movements
+#' following the Kyle (1985) linear impact model. This modifies the binomial tree
+#' dynamics through adjusted up/down factors and risk-neutral probability.
 #'
 #' @section Mathematical Framework:
 #' The package uses the replicating portfolio approach where the option value
-#' equals the cost of constructing a portfolio that replicates its payoff:
-#' \deqn{V = \Delta \cdot S + B}
+#' equals the cost of constructing a portfolio that replicates its payoff,
+#' leading to risk-neutral pricing.
 #'
-#' This leads to the risk-neutral pricing formula:
-#' \deqn{V = \frac{1}{r^n} \mathbb{E}^Q[\text{Payoff}]}
-#'
-#' For geometric Asian options, the payoff is:
-#' \deqn{V_n = \max(0, G_n - K)}
-#' where \eqn{G_n = (S_0 \cdot S_1 \cdot \ldots \cdot S_n)^{1/(n+1)}} is the geometric average.
-#'
-#' For arithmetic Asian options, bounds are computed using Jensen's inequality:
-#' \deqn{V_0^G \leq V_0^A \leq V_0^G + \frac{(\rho^* - 1)}{r^n} \mathbb{E}^Q[G_n]}
-#' where \eqn{\rho^* = \exp\left[\frac{(\tilde{u}^n - \tilde{d}^n)^2}{4\tilde{u}^n\tilde{d}^n}\right]}
+#' For geometric Asian options, the geometric average of stock prices is used.
+#' For arithmetic Asian options, rigorous upper and lower bounds are computed
+#' using Jensen's inequality. A tighter path-specific bound is available via
+#' exact path enumeration.
 #'
 #' @section No-Arbitrage Condition:
-#' For valid pricing, the model requires:
-#' \deqn{\tilde{d} < r < \tilde{u}}
-#' This ensures the adjusted risk-neutral probability \eqn{p^{adj} \in [0,1]}.
-#' All pricing functions validate this condition automatically.
+#' For valid pricing, the model requires that the adjusted down factor is less
+#' than the risk-free rate, which is less than the adjusted up factor. This
+#' ensures a valid risk-neutral probability. All pricing functions validate
+#' this condition automatically.
+#'
+#' For detailed mathematical formulations, see the package vignettes and
+#' the reference paper.
 #'
 #' @section Computational Complexity:
 #' The implementation enumerates all \eqn{2^n} possible price paths:
@@ -55,14 +46,8 @@
 #' }
 #'
 #' @references
-#' Cox, J. C., Ross, S. A., & Rubinstein, M. (1979).
-#' Option pricing: A simplified approach.
-#' \emph{Journal of Financial Economics}, 7(3), 229-263.
-#'
-#' Budimir, I., Dragomir, S. S., & Pecaric, J. (2000).
-#' Further reverse results for Jensen's discrete inequality and
-#' applications in information theory.
-#' \emph{Journal of Inequalities in Pure and Applied Mathematics}, 2(1).
+#' Tiwari, P., & Majumdar, S. (2024). Asian option valuation under price impact.
+#' \emph{arXiv preprint}. \doi{10.48550/arXiv.2512.07154}
 #'
 #' @examples
 #' # Price geometric Asian option with price impact

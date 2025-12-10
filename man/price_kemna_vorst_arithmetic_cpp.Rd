@@ -59,27 +59,18 @@ using the geometric average as a control variate. This is the standard
 benchmark implementation WITHOUT price impact.
 }
 \details{
-The algorithm follows Kemna & Vorst (1990):
+Implements the Kemna & Vorst (1990) Monte Carlo algorithm with control variate
+variance reduction:
 
-1. Generate price paths under risk-neutral dynamics:
-   \deqn{\log(S_{i+1}) = \log(S_i) + (r - \sigma^2/2)\Delta t + \sigma\sqrt{\Delta t} Z_i}
-   where \eqn{Z_i \sim N(0,1)}
-
-2. Calculate arithmetic and geometric averages for each path:
-   \deqn{A = \frac{1}{n+1}\sum_{i=0}^{n} S_i}
-   \deqn{G = \left(\prod_{i=0}^{n} S_i\right)^{1/(n+1)}}
-
-3. Calculate discounted payoffs:
-   \deqn{Y = e^{-r\tau} \max(A - K, 0)}
-   \deqn{W = e^{-r\tau} \max(G - K, 0)}
-
-4. Use control variate method to reduce variance:
-   \deqn{\hat{C}_{enhanced} = E[W] + \frac{1}{M}\sum_{j=1}^{M}(Y_j - W_j)}
-
-where \eqn{E[W]} is the analytical geometric average price.
+1. Generate price paths under risk-neutral dynamics
+2. Calculate arithmetic and geometric averages for each path
+3. Calculate discounted payoffs for both averages
+4. Use the geometric average (with known analytical price) as a control variate
+   to reduce variance of the arithmetic average estimate
 
 The variance reduction can be dramatic (factor 10-70) because the
 correlation between arithmetic and geometric averages is typically > 0.95.
+This is a standard benchmark method WITHOUT price impact.
 }
 \examples{
 \donttest{

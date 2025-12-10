@@ -50,23 +50,15 @@ Cox-Ross-Rubinstein (CRR) binomial model with price impact from
 hedging activities. Uses exact enumeration of all 2^n paths.
 }
 \details{
-The geometric Asian option payoff is:
-\itemize{
-  \item Call: \eqn{V_n = \max(0, G_n - K)}
-  \item Put: \eqn{V_n = \max(0, K - G_n)}
-}
-where \eqn{G_n = (S_0 \cdot S_1 \cdot \ldots \cdot S_n)^{1/(n+1)}}
+Computes exact prices for geometric Asian options using complete path
+enumeration in a binomial tree. Price impact from hedging activities modifies
+the stock dynamics through adjusted up/down factors and risk-neutral
+probability.
 
-Price impact modifies the stock dynamics:
-\itemize{
-  \item Effective up factor: \eqn{\tilde{u} = u \cdot e^{\lambda v^u}}
-  \item Effective down factor: \eqn{\tilde{d} = d \cdot e^{-\lambda v^d}}
-  \item Risk-neutral probability: \eqn{p^{eff} = \frac{r - \tilde{d}}{\tilde{u} - \tilde{d}}}
-}
-
-This function enumerates all \eqn{2^n} possible paths in the binomial tree
-for exact pricing. For large n, this requires significant computation time
-and memory.
+This function enumerates all 2^n possible paths in the binomial tree for
+exact pricing (no approximation or sampling). For large n (> 20), this
+requires significant computation time and memory. See the package vignettes
+and reference paper for detailed mathematical formulations.
 }
 \examples{
 # Basic example
@@ -90,9 +82,8 @@ price_geometric_asian(
 
 }
 \references{
-Cox, J. C., Ross, S. A., & Rubinstein, M. (1979).
-Option pricing: A simplified approach.
-\emph{Journal of Financial Economics}, 7(3), 229-263.
+Tiwari, P., & Majumdar, S. (2024). Asian option valuation under price impact.
+\emph{arXiv preprint}. \doi{10.48550/arXiv.2512.07154}
 }
 \seealso{
 \code{\link{arithmetic_asian_bounds}}, \code{\link{compute_p_adj}}

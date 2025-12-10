@@ -1,196 +1,290 @@
 # AsianOption 0.1.0
 
-## New Features (December 2025)
+*Initial CRAN release - December 2024*
 
-### Monte Carlo Simulation for Large n
+## Overview
 
-- **NEW**: `price_geometric_asian_mc()`: Monte Carlo pricing for large n (> 20)
-  - Efficient simulation-based pricing
-  - Handles arbitrarily large n (tested up to n=100+)
-  - Returns price, standard error, and 95% confidence interval
+The `AsianOption` package implements exact binomial tree pricing for Asian options
+with market price impact from hedging activities, following the Cox-Ross-Rubinstein
+(CRR) framework extended to incorporate the Kyle (1985) linear impact model.
+
+## Main Features
+
+### Asian Options with Price Impact
+
+#### Geometric Asian Options
+
+- **`price_geometric_asian()`**: Exact pricing via complete path enumeration
+  - Supports both call and put options
+  - Handles price impact from hedging activities
+  - Efficient C++ implementation (Rcpp)
+  - Complete enumeration of all 2^n paths (exact, no sampling)
+  - Practical for n ≤ 20 time steps
+
+#### Arithmetic Asian Options
+
+- **`arithmetic_asian_bounds()`**: Rigorous bounds via Jensen's inequality
+  - **Lower bound**: Geometric Asian option price (AM-GM inequality)
+  - **Global upper bound**: Using worst-case spread parameter ρ*
+  - **Path-specific upper bound**: Tighter bounds via exact path enumeration
+  - Supports both call and put options
+  - Returns comprehensive diagnostics (ρ*, E^Q[G_n], bounds)
+  - S3 print method for formatted output
+
+### European Options with Price Impact
+
+- **`price_european_call()`**: European call option pricing
+- **`price_european_put()`**: European put option pricing
+- **`price_european()`**: Unified interface for calls and puts
+- Efficient O(n) computation (vs O(2^n) for Asian options)
+- Full price impact support
+
+### Benchmark Pricing Functions
+
+The package includes standard pricing methods without price impact for comparison
+and validation:
+
+#### Kemna-Vorst Analytical Solutions
+
+- **`price_kemna_vorst_geometric()`**: Closed-form geometric Asian option price
+  - Based on Kemna & Vorst (1990)
+  - Continuous-time Black-Scholes framework
+  - Supports both call and put options
+
+- **`price_kemna_vorst_geometric_binomial()`**: Binomial parameter interface
+  - Converts binomial parameters (u, d, n) to continuous (σ, T)
+  - Direct comparison with binomial tree methods
+
+#### Kemna-Vorst Monte Carlo
+
+- **`price_kemna_vorst_arithmetic()`**: MC pricing for arithmetic Asian options
+  - Control variate variance reduction (using geometric average)
+  - Typically 10-20x variance reduction
+  - Returns price, standard error, and confidence intervals
+  - S3 methods for printing and summary
+
+- **`price_kemna_vorst_arithmetic_binomial()`**: Binomial parameter interface
+  - Handles large n efficiently via simulation
   - Reproducible results with seed parameter
-  - Typical accuracy: < 0.5% error with 100,000 simulations
 
-- **ENHANCED**: `price_geometric_asian()`: Automatic method selection
-  - Auto-selects exact enumeration for n ≤ 20
-  - Auto-selects Monte Carlo for n > 20
-  - Manual override available via `method` parameter
-  - Seamless integration with existing code
+#### Black-Scholes Formulas
 
-### Performance Improvements
+- **`price_black_scholes_call()`**: Classic BS call option price
+- **`price_black_scholes_put()`**: Classic BS put option price
+- **`price_black_scholes_binomial()`**: BS price using binomial parameters
+  - Shows convergence of CRR to Black-Scholes as n → ∞
 
-- **Exact method**: Unchanged, optimal for n ≤ 20
-- **Monte Carlo**: Extends practical range to n = 100+ time steps
-  - n=30: ~0.1 seconds (vs. 1 billion paths with exact)
-  - n=50: ~0.2 seconds (vs. 10^15 paths with exact)
-  - n=100: ~0.4 seconds (impossible with exact method)
+### Price Impact Utilities
 
-### Additional Enhancements
+- **`compute_p_adj()`**: Adjusted risk-neutral probability with price impact
+- **`compute_adjusted_factors()`**: Modified up/down factors (ũ, d̃)
+- **`check_no_arbitrage()`**: Validates no-arbitrage condition d̃ < r < ũ
 
-- **Put option support**: Both call and put options now fully supported
-- **S3 print method**: Pretty printing for Monte Carlo results
-- **Enhanced documentation**: Complete Monte Carlo examples and theory
-- **43 new tests**: Comprehensive test coverage for MC implementation
+## Mathematical Framework
 
-## Initial Release (November 2025)
+### Price Impact Model
 
-This is the initial development release of AsianOption, implementing binomial tree pricing for Asian options with market price impact from hedging activities.
+The package implements the Kyle (1985) linear impact model:
 
-### Core Features
+**Impact on stock dynamics:**
+```
+ũ = u · exp(λ·v_u)
+d̃ = d · exp(-λ·v_d)
+```
 
-#### Pricing Functions
-- `price_geometric_asian()`: Exact pricing for geometric Asian call options
-  - Complete path enumeration algorithm
-  - Efficient C++ implementation via Rcpp
-  - Handles up to n = 20 time steps comfortably
+where:
+- λ: price impact coefficient
+- v_u, v_d: hedging volumes for up/down moves
 
-- `arithmetic_asian_bounds()`: Upper and lower bounds for arithmetic Asian options
-  - Lower bound using AM-GM inequality
-  - Upper bound via reverse Jensen's inequality
-  - Returns comprehensive bound information (lower, upper, ρ*, E^Q[G_n])
+**Adjusted risk-neutral probability:**
+```
+p^adj = (r - d̃) / (ũ - d̃)
+```
 
-#### Utility Functions
-- `compute_p_adj()`: Compute adjusted risk-neutral probability with price impact
-- `compute_adjusted_factors()`: Calculate modified up/down factors (ũ, d̃)
-- `check_no_arbitrage()`: Validate no-arbitrage condition d̃ < r < ũ
+**No-arbitrage condition:**
+```
+d̃ < r < ũ  ⟹  0 ≤ p^adj ≤ 1
+```
 
-#### Price Impact Model
-- Incorporates hedging-induced stock price movements: ΔS = λ·v·sign(trade)
-- Modifies binomial tree with adjusted factors: ũ = u·e^(λv^u), d̃ = d·e^(-λv^d)
-- Adjusts risk-neutral probability: p^adj = (r - d̃)/(ũ - d̃)
+### Path Enumeration Algorithm
 
-### Input Validation
+For geometric Asian options, the package computes exact prices by:
 
-Comprehensive parameter validation including:
-- Positivity checks (S0, K, r, u, d must be positive)
-- Non-negativity for price impact parameters (λ, v_u, v_d ≥ 0)
-- Ordering constraint (u > d)
-- **Critical no-arbitrage validation** (d̃ < r < ũ)
-- Risk-neutral probability bounds (p^adj ∈ [0,1])
-- Performance warnings for large n (> 20)
+1. Enumerating all 2^n possible paths ω ∈ {U, D}^n
+2. Computing geometric average G(ω) for each path
+3. Computing payoff: max(0, G(ω) - K) for calls
+4. Risk-neutral valuation: V_0 = (1/r^n) Σ P(ω) · Payoff(ω)
 
-### Documentation
+**Complexity:** O(2^n) - exact with no approximation error
 
-#### Package Documentation
-- Comprehensive package-level documentation in `?AsianOption`
-- Mathematical framework with LaTeX formulas
-- Price impact mechanism explained
-- No-arbitrage condition detailed
-- Computational complexity analysis
+### Bounds for Arithmetic Asian Options
 
-#### Function Documentation
-- Complete Roxygen documentation for all functions
-- All parameters documented with @param
-- Return values specified with @return
-- Mathematical details in @details sections
-- Working examples in @examples
-- Academic references in @references
+Since arithmetic Asian options lack closed-form solutions, the package provides
+rigorous bounds:
 
-#### README
-- Quick start guide with examples
-- Detailed mathematical explanations
-- Usage examples for all functions
-- Sensitivity analysis demonstrations
-- Error handling examples
-- Performance benchmarks
+**Lower bound (AM-GM):**
+```
+V_0^A ≥ V_0^G  (arithmetic ≥ geometric)
+```
 
-### Implementation Details
+**Global upper bound:**
+```
+V_0^A ≤ V_0^G + (ρ* - 1)/r^n · E^Q[G_n]
+where ρ* = exp[(ũ^n - d̃^n)² / (4·ũ^n·d̃^n)]
+```
 
-#### C++ Core (src/)
-- `utils.cpp`: Core utility functions
-  - Adjusted factor calculations
-  - Geometric and arithmetic mean computations
-  - Price path generation
+**Path-specific upper bound:**
+```
+V_0^A ≤ V_0^G + (1/r^n) Σ_ω P(ω)·(ρ(ω) - 1)·G_n(ω)
+where ρ(ω) = exp[(S_M(ω) - S_m(ω))² / (4·S_m(ω)·S_M(ω))]
+```
 
-- `geometric_asian.cpp`: Geometric Asian option pricing
-  - Recursive binary path enumeration (2^n paths)
-  - Risk-neutral valuation with price impact
-  - Optimized for performance
+The path-specific bound is typically much tighter than the global bound.
 
-- `arithmetic_bounds.cpp`: Arithmetic Asian bounds
-  - Jensen's inequality implementation
-  - Spread parameter ρ* calculation
-  - Expected geometric average computation
-
-#### R Wrapper Layer (R/)
-- `validation.R`: Input validation module
-- `price_impact_utils.R`: Utility function wrappers
-- `geometric_asian.R`: Geometric pricing wrapper
-- `arithmetic_asian.R`: Arithmetic bounds wrapper with S3 print method
+## Implementation Details
 
 ### Performance
 
-- **Fast**: n ≤ 15 completes in < 1 second
-- **Acceptable**: n = 20 takes ~10 seconds (1 million paths)
-- **Warning**: Automatic warning issued for n > 20
-- **Efficient**: C++11 implementation with Rcpp integration
+**Exact enumeration (geometric Asian, path-specific bounds):**
 
-### Testing
+| n   | Paths        | Time      | Feasibility |
+|-----|--------------|-----------|-------------|
+| 10  | 1,024        | < 1 ms    | Very fast   |
+| 15  | 32,768       | ~10 ms    | Fast        |
+| 20  | 1,048,576    | ~1 sec    | Feasible    |
+| 25  | 33,554,432   | ~30 sec   | Slow        |
 
-- All core functions tested and validated
-- Mathematical properties verified:
-  - Price with impact > Price without impact (for calls)
-  - Lower bound ≤ Upper bound
-  - ρ* ≥ 1 (required by theory)
-  - No-arbitrage condition enforcement
+**Recommendation:** Use exact methods for n ≤ 20
 
-- Input validation thoroughly tested:
-  - Catches invalid parameters (negative values, u ≤ d, etc.)
-  - Detects no-arbitrage violations
-  - Issues performance warnings
+**European options:** O(n) complexity - can handle n > 100 efficiently
 
-### S3 Methods
+### C++ Core Implementation
 
-- `print.arithmetic_bounds()`: Pretty printing for bounds objects
-  - Formatted table display
-  - Shows all key metrics
-  - Includes midpoint estimate
+All performance-critical code implemented in C++11 via Rcpp:
 
-### Development Status
+- `geometric_asian.cpp`: Path enumeration for geometric Asian pricing
+- `arithmetic_bounds.cpp`: Bound computation with path-specific option
+- `european_option.cpp`: Efficient European option pricing
+- `kemna_vorst_mc.cpp`: Monte Carlo with control variates
+- `utils.cpp`: Core utility functions
 
-**Completed Phases**:
-- ✅ Phase 1: Package skeleton and infrastructure
-- ✅ Phase 2: Core C++ implementation
-- ✅ Phase 3: R wrapper functions with validation
-- ✅ Phase 4: Enhanced documentation
+### Input Validation
 
-**Planned for Future Releases**:
-- Phase 5: Comprehensive unit testing with testthat
-- Phase 6: Theory and examples vignettes
-- Phase 7: CRAN compliance checks
-- Phase 8: CRAN submission
+Comprehensive parameter validation:
 
-### Dependencies
+- Positivity: S0, K, r, u, d > 0
+- Non-negativity: λ, v_u, v_d ≥ 0
+- Ordering: u > d
+- **No-arbitrage**: d̃ < r < ũ (critical - automatically checked)
+- Probability bounds: 0 ≤ p^adj ≤ 1
+- Performance warnings: Issued for n > 20
 
-- R (>= 4.0.0)
-- Rcpp (>= 1.0.0)
+## Documentation
 
-### References
+### Vignettes
 
-**Primary Model**:
-Cox, J. C., Ross, S. A., & Rubinstein, M. (1979). Option pricing: A simplified approach. *Journal of Financial Economics*, 7(3), 229-263.
+- **theory**: Mathematical foundations, price impact model, path enumeration,
+  bounds theory, computational complexity
+- **examples**: 14 comprehensive examples covering pricing, sensitivity analysis,
+  parameter effects, comparative studies, and convergence
 
-**Bounds Theory**:
-Budimir, I., Dragomir, S. S., & Pečarić, J. (2000). Further reverse results for Jensen's discrete inequality and applications in information theory. *Journal of Inequalities in Pure and Applied Mathematics*, 2(1).
+### Help Files
 
-### Notes
+- Complete Roxygen2 documentation for all exported functions
+- Mathematical details with LaTeX equations
+- Working examples for each function
+- Cross-references between related functions
 
-- This is a development release implementing core functionality
-- Package uses gross rates (r = 1.05 for 5%, not r = 0.05)
-- All functions automatically validate no-arbitrage conditions
-- C++11 standard required for compilation
-- Comprehensive error messages for invalid inputs
+## S3 Methods
 
-### Known Limitations
+- `print.arithmetic_bounds()`: Formatted display of bounds
+- `print.kemna_vorst_arithmetic()`: Formatted MC results with diagnostics
+- `summary.kemna_vorst_arithmetic()`: Detailed MC summary
 
-- **Exact method**: Path enumeration complexity O(2^n) limits practical use to n ≤ 20
-  - Memory usage: O(n·2^n) for storing all paths
-  - Automatic fallback to Monte Carlo for n > 20
-- **Monte Carlo method**: Provides estimates with quantifiable error
-  - Standard error typically < 0.5% with default 100,000 simulations
-  - Increase n_simulations for higher precision if needed
-- Single option type per call (no portfolio pricing yet)
+## Installation and Usage
 
-### Acknowledgments
+```r
+# Install from CRAN (after acceptance)
+install.packages("AsianOption")
 
-Development supported by comprehensive mathematical analysis and rigorous testing procedures. Implementation follows CRAN best practices for R package development.
+# Basic example: Geometric Asian call with price impact
+library(AsianOption)
+
+price <- price_geometric_asian(
+  S0 = 100,           # Initial price
+  K = 100,            # Strike
+  r = 1.05,           # Risk-free rate (gross: 5%)
+  u = 1.2,            # Up factor
+  d = 0.8,            # Down factor
+  lambda = 0.1,       # Price impact coefficient
+  v_u = 1,            # Up-move hedging volume
+  v_d = 1,            # Down-move hedging volume
+  n = 10,             # Time steps
+  option_type = "call"
+)
+
+# Arithmetic Asian bounds with tight path-specific bound
+bounds <- arithmetic_asian_bounds(
+  S0 = 100, K = 100, r = 1.05, u = 1.2, d = 0.8,
+  lambda = 0.1, v_u = 1, v_d = 1, n = 10,
+  compute_path_specific = TRUE
+)
+print(bounds)
+```
+
+## Rate Convention
+
+**Important:** This package uses **gross rates** following binomial tree convention:
+- Use `r = 1.05` for 5% per period (NOT `r = 0.05`)
+- Benchmark functions use continuously compounded rates where standard
+
+## System Requirements
+
+- R ≥ 4.0.0
+- Rcpp ≥ 1.0.0
+- C++11 compiler
+
+## Testing
+
+The package includes comprehensive tests covering:
+- Mathematical properties (price relationships, bound ordering)
+- No-arbitrage condition enforcement
+- Input validation
+- Edge cases and error handling
+- Numerical accuracy
+
+## References
+
+**Primary reference:**
+
+Tiwari, P., & Majumdar, S. (2024). Asian option valuation under price impact.
+*arXiv preprint*. https://doi.org/10.48550/arXiv.2512.07154
+
+**Additional references:**
+
+Cox, J. C., Ross, S. A., & Rubinstein, M. (1979). Option pricing: A simplified
+approach. *Journal of Financial Economics*, 7(3), 229-263.
+
+Kyle, A. S. (1985). Continuous auctions and insider trading. *Econometrica*,
+53(6), 1315-1335.
+
+Kemna, A. G. Z., & Vorst, A. C. F. (1990). A pricing method for options based
+on average asset values. *Journal of Banking and Finance*, 14, 113-129.
+
+## License
+
+GPL (≥ 3)
+
+## Authors
+
+Priyanshu Tiwari <priyanshu.tiwari@duke.edu>
+
+## Bug Reports
+
+Please report issues at: https://github.com/plato-12/AsianOption/issues
+
+---
+
+*This is the initial release implementing core functionality for Asian option
+pricing with market price impact. Future releases may include additional features
+based on user feedback.*

@@ -33,16 +33,11 @@ Computes the exact price of a European put option using the
 binomial tree model with price impact from hedging activities.
 }
 \details{
-The function computes the European put option price using the CRR binomial
-model with price impact. The pricing formula is:
-\deqn{V_0 = \frac{1}{r^n} \sum_{k=0}^{n} \binom{n}{k} p_{eff}^k (1-p_{eff})^{n-k} \max(0, K - S_n(k))}
-
-where \eqn{S_n(k) = S_0 \tilde{u}^k \tilde{d}^{n-k}} is the stock price after k up moves.
-
-Price impact modifies the up and down factors:
-- Adjusted up factor: \eqn{\tilde{u} = u \exp(\lambda v^u)}
-- Adjusted down factor: \eqn{\tilde{d} = d \exp(-\lambda v^d)}
-- Adjusted risk-neutral probability: \eqn{p_{adj} = \frac{r - \tilde{d}}{\tilde{u} - \tilde{d}}}
+Computes European put option prices using the binomial model with price impact.
+Unlike path-dependent Asian options, European options only depend on the terminal
+stock price, allowing for efficient O(n) computation. Price impact from hedging
+activities modifies the up and down factors. See the package vignettes and
+reference paper for detailed mathematical formulations.
 }
 \examples{
 \dontrun{
@@ -55,7 +50,6 @@ price_european_put_cpp(
 
 }
 \references{
-Cox, J. C., Ross, S. A., & Rubinstein, M. (1979). Option pricing:
-A simplified approach. Journal of Financial Economics, 7(3), 229-263.
-\doi{10.1016/0304-405X(79)90015-1}
+Tiwari, P., & Majumdar, S. (2024). Asian option valuation under price impact.
+arXiv preprint. \doi{10.48550/arXiv.2512.07154}
 }

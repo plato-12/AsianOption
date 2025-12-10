@@ -46,21 +46,10 @@ Computes the exact price of a geometric Asian option (call or put) using the
 binomial tree model with price impact from hedging activities.
 }
 \details{
-The function uses exact enumeration, computing all 2^n possible price paths:
-\itemize{
-  \item Geometric average: \eqn{G = (S_0 \cdot S_1 \cdot \ldots \cdot S_n)^{1/(n+1)}}
-  \item Call payoff: \eqn{\max(0, G - K)}
-  \item Put payoff: \eqn{\max(0, K - G)}
-  \item Option value: \eqn{(1/r^n) \cdot \sum_{paths} p^k (1-p)^{(n-k)} \cdot payoff}
-}
-
-This is an exact calculation (no sampling or approximation).
-
-Price impact modifies the up and down factors:
-\itemize{
-  \item Adjusted up factor: \eqn{u_{tilde} = u \cdot \exp(\lambda \cdot v_u)}
-  \item Adjusted down factor: \eqn{d_{tilde} = d \cdot \exp(-\lambda \cdot v_d)}
-}
+The function uses exact enumeration, computing all 2^n possible price paths
+in the binomial tree. This is an exact calculation with no sampling or
+approximation. Price impact from hedging activities modifies the up and down
+factors before computing the geometric average and option payoff.
 }
 \examples{
 \dontrun{
@@ -79,6 +68,6 @@ price_geometric_asian_cpp(
 
 }
 \references{
-Cox, J. C., Ross, S. A., & Rubinstein, M. (1979). Option pricing:
-A simplified approach. Journal of Financial Economics, 7(3), 229-263.
+Tiwari, P., & Majumdar, S. (2024). Asian option valuation under price impact.
+arXiv preprint. \doi{10.48550/arXiv.2512.07154}
 }

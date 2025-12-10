@@ -50,21 +50,14 @@ Cox-Ross-Rubinstein (CRR) binomial model with price impact from
 hedging activities.
 }
 \details{
-The European option payoff is:
-\itemize{
-  \item Call: \eqn{V_n = \max(0, S_n - K)}
-  \item Put: \eqn{V_n = \max(0, K - S_n)}
-}
-
-Price impact modifies the stock dynamics:
-\itemize{
-  \item Effective up factor: \eqn{\tilde{u} = u \cdot e^{\lambda v^u}}
-  \item Effective down factor: \eqn{\tilde{d} = d \cdot e^{-\lambda v^d}}
-  \item Risk-neutral probability: \eqn{p^{eff} = \frac{r - \tilde{d}}{\tilde{u} - \tilde{d}}}
-}
+Computes exact prices for European options (call or put) using the binomial
+model with price impact. Price impact from hedging activities modifies the
+stock dynamics through adjusted up/down factors and risk-neutral probability.
 
 Unlike path-dependent Asian options, European options only depend on the
 terminal stock price, allowing for efficient O(n) computation instead of O(2^n).
+See the package vignettes and reference paper for detailed mathematical
+formulations.
 }
 \examples{
 # Call option with no price impact
@@ -85,10 +78,8 @@ put <- price_european(100, 100, 1.05, 1.2, 0.8, 0.1, 1, 1, 10, "put")
 
 }
 \references{
-Cox, J. C., Ross, S. A., & Rubinstein, M. (1979).
-Option pricing: A simplified approach.
-\emph{Journal of Financial Economics}, 7(3), 229-263.
-\doi{10.1016/0304-405X(79)90015-1}
+Tiwari, P., & Majumdar, S. (2024). Asian option valuation under price impact.
+\emph{arXiv preprint}. \doi{10.48550/arXiv.2512.07154}
 }
 \seealso{
 \code{\link{price_european_call}}, \code{\link{price_european_put}},

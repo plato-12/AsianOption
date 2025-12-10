@@ -27,11 +27,10 @@
 #' }
 #'
 #' @details
-#' Lower bound: \eqn{V_0^A \ge V_0^G} (by AM-GM inequality)
-#'
-#' Upper bound: \eqn{V_0^A \le V_0^G + (rho^* - 1) \cdot E^Q(G_n) / r^n}
-#'
-#' where \eqn{rho^* = \exp((u_{tilde}^n - d_{tilde}^n)^2 / (4 \cdot u_{tilde}^n \cdot d_{tilde}^n))}
+#' Computes rigorous upper and lower bounds using Jensen's inequality and the
+#' AM-GM inequality. The lower bound is the geometric Asian option price, and
+#' the upper bound uses a global spread parameter. See the package vignettes
+#' and reference paper for detailed mathematical formulations.
 #'
 #' @export
 arithmetic_asian_bounds_cpp <- function(S0, K, r, u, d, lambda, v_u, v_d, n, option_type = "call") {
@@ -89,24 +88,15 @@ arithmetic_asian_bounds_extended_cpp <- function(S0, K, r, u, d, lambda, v_u, v_
 #' @return European call option price
 #'
 #' @details
-#' The function computes the European call option price using the CRR binomial
-#' model with price impact. Unlike path-dependent Asian options, European options
-#' only depend on the terminal stock price, allowing for efficient O(n) computation.
-#'
-#' The pricing formula is:
-#' \deqn{V_0 = \frac{1}{r^n} \sum_{k=0}^{n} \binom{n}{k} p_{eff}^k (1-p_{eff})^{n-k} \max(0, S_n(k) - K)}
-#'
-#' where \eqn{S_n(k) = S_0 \tilde{u}^k \tilde{d}^{n-k}} is the stock price after k up moves.
-#'
-#' Price impact modifies the up and down factors:
-#' - Adjusted up factor: \eqn{\tilde{u} = u \exp(\lambda v^u)}
-#' - Adjusted down factor: \eqn{\tilde{d} = d \exp(-\lambda v^d)}
-#' - Adjusted risk-neutral probability: \eqn{p_{adj} = \frac{r - \tilde{d}}{\tilde{u} - \tilde{d}}}
+#' Computes European call option prices using the binomial model with price impact.
+#' Unlike path-dependent Asian options, European options only depend on the terminal
+#' stock price, allowing for efficient O(n) computation. Price impact from hedging
+#' activities modifies the up and down factors. See the package vignettes and
+#' reference paper for detailed mathematical formulations.
 #'
 #' @references
-#' Cox, J. C., Ross, S. A., & Rubinstein, M. (1979). Option pricing:
-#' A simplified approach. Journal of Financial Economics, 7(3), 229-263.
-#' \doi{10.1016/0304-405X(79)90015-1}
+#' Tiwari, P., & Majumdar, S. (2024). Asian option valuation under price impact.
+#' arXiv preprint. \doi{10.48550/arXiv.2512.07154}
 #'
 #' @examples
 #' \dontrun{
@@ -140,21 +130,15 @@ price_european_call_cpp <- function(S0, K, r, u, d, lambda, v_u, v_d, n) {
 #' @return European put option price
 #'
 #' @details
-#' The function computes the European put option price using the CRR binomial
-#' model with price impact. The pricing formula is:
-#' \deqn{V_0 = \frac{1}{r^n} \sum_{k=0}^{n} \binom{n}{k} p_{eff}^k (1-p_{eff})^{n-k} \max(0, K - S_n(k))}
-#'
-#' where \eqn{S_n(k) = S_0 \tilde{u}^k \tilde{d}^{n-k}} is the stock price after k up moves.
-#'
-#' Price impact modifies the up and down factors:
-#' - Adjusted up factor: \eqn{\tilde{u} = u \exp(\lambda v^u)}
-#' - Adjusted down factor: \eqn{\tilde{d} = d \exp(-\lambda v^d)}
-#' - Adjusted risk-neutral probability: \eqn{p_{adj} = \frac{r - \tilde{d}}{\tilde{u} - \tilde{d}}}
+#' Computes European put option prices using the binomial model with price impact.
+#' Unlike path-dependent Asian options, European options only depend on the terminal
+#' stock price, allowing for efficient O(n) computation. Price impact from hedging
+#' activities modifies the up and down factors. See the package vignettes and
+#' reference paper for detailed mathematical formulations.
 #'
 #' @references
-#' Cox, J. C., Ross, S. A., & Rubinstein, M. (1979). Option pricing:
-#' A simplified approach. Journal of Financial Economics, 7(3), 229-263.
-#' \doi{10.1016/0304-405X(79)90015-1}
+#' Tiwari, P., & Majumdar, S. (2024). Asian option valuation under price impact.
+#' arXiv preprint. \doi{10.48550/arXiv.2512.07154}
 #'
 #' @examples
 #' \dontrun{
@@ -193,25 +177,14 @@ generate_all_paths <- function(n) {
 #' @return Geometric Asian option price
 #'
 #' @details
-#' The function uses exact enumeration, computing all 2^n possible price paths:
-#' \itemize{
-#'   \item Geometric average: \eqn{G = (S_0 \cdot S_1 \cdot \ldots \cdot S_n)^{1/(n+1)}}
-#'   \item Call payoff: \eqn{\max(0, G - K)}
-#'   \item Put payoff: \eqn{\max(0, K - G)}
-#'   \item Option value: \eqn{(1/r^n) \cdot \sum_{paths} p^k (1-p)^{(n-k)} \cdot payoff}
-#' }
-#'
-#' This is an exact calculation (no sampling or approximation).
-#'
-#' Price impact modifies the up and down factors:
-#' \itemize{
-#'   \item Adjusted up factor: \eqn{u_{tilde} = u \cdot \exp(\lambda \cdot v_u)}
-#'   \item Adjusted down factor: \eqn{d_{tilde} = d \cdot \exp(-\lambda \cdot v_d)}
-#' }
+#' The function uses exact enumeration, computing all 2^n possible price paths
+#' in the binomial tree. This is an exact calculation with no sampling or
+#' approximation. Price impact from hedging activities modifies the up and down
+#' factors before computing the geometric average and option payoff.
 #'
 #' @references
-#' Cox, J. C., Ross, S. A., & Rubinstein, M. (1979). Option pricing:
-#' A simplified approach. Journal of Financial Economics, 7(3), 229-263.
+#' Tiwari, P., & Majumdar, S. (2024). Asian option valuation under price impact.
+#' arXiv preprint. \doi{10.48550/arXiv.2512.07154}
 #'
 #' @examples
 #' \dontrun{
@@ -263,27 +236,18 @@ price_geometric_asian_cpp <- function(S0, K, r, u, d, lambda, v_u, v_d, n, optio
 #' }
 #'
 #' @details
-#' The algorithm follows Kemna & Vorst (1990):
+#' Implements the Kemna & Vorst (1990) Monte Carlo algorithm with control variate
+#' variance reduction:
 #'
-#' 1. Generate price paths under risk-neutral dynamics:
-#'    \deqn{\log(S_{i+1}) = \log(S_i) + (r - \sigma^2/2)\Delta t + \sigma\sqrt{\Delta t} Z_i}
-#'    where \eqn{Z_i \sim N(0,1)}
-#'
-#' 2. Calculate arithmetic and geometric averages for each path:
-#'    \deqn{A = \frac{1}{n+1}\sum_{i=0}^{n} S_i}
-#'    \deqn{G = \left(\prod_{i=0}^{n} S_i\right)^{1/(n+1)}}
-#'
-#' 3. Calculate discounted payoffs:
-#'    \deqn{Y = e^{-r\tau} \max(A - K, 0)}
-#'    \deqn{W = e^{-r\tau} \max(G - K, 0)}
-#'
-#' 4. Use control variate method to reduce variance:
-#'    \deqn{\hat{C}_{enhanced} = E[W] + \frac{1}{M}\sum_{j=1}^{M}(Y_j - W_j)}
-#'
-#' where \eqn{E[W]} is the analytical geometric average price.
+#' 1. Generate price paths under risk-neutral dynamics
+#' 2. Calculate arithmetic and geometric averages for each path
+#' 3. Calculate discounted payoffs for both averages
+#' 4. Use the geometric average (with known analytical price) as a control variate
+#'    to reduce variance of the arithmetic average estimate
 #'
 #' The variance reduction can be dramatic (factor 10-70) because the
 #' correlation between arithmetic and geometric averages is typically > 0.95.
+#' This is a standard benchmark method WITHOUT price impact.
 #'
 #' @references
 #' Kemna, A.G.Z. and Vorst, A.C.F. (1990). "A Pricing Method for Options Based
