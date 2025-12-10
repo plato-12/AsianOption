@@ -277,7 +277,7 @@ GPL (≥ 3)
 
 ## Authors
 
-Priyanshu Tiwari <priyanshu.tiwari@duke.edu>
+Priyanshu Tiwari <tiwari.priyanshu.iitk@gmail.com>
 
 ## Bug Reports
 
