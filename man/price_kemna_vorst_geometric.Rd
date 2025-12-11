@@ -2,7 +2,7 @@
 % Please edit documentation in R/kemna_vorst_geometric.R
 \name{price_kemna_vorst_geometric}
 \alias{price_kemna_vorst_geometric}
-\title{Kemna-Vorst Geometric Average Asian Call Option (Analytical)}
+\title{Kemna-Vorst Geometric Average Asian Call Option}
 \usage{
 price_kemna_vorst_geometric(S0, K, r, sigma, T0, T, option_type = "call")
 }
@@ -39,13 +39,6 @@ The geometric average at maturity is defined as:
 For the discrete case with n+1 observations:
 \deqn{G_T = \left(\prod_{i=0}^{n} S(T_i)\right)^{1/(n+1)}}
 
-The key property is that \eqn{\log(G_T)} is normally distributed:
-\deqn{\log(G_T) \sim N(\mu_G, \sigma_G^2)}
-
-where:
-\deqn{\mu_G = \log(S_0) + \frac{1}{2}(r - \frac{\sigma^2}{2})(T - T_0)}
-\deqn{\sigma_G = \frac{\sigma}{\sqrt{3}}}
-
 The closed-form solution for a call option is:
 \deqn{C = S_0 e^{d^*} N(d) - K N(d - \sigma_G\sqrt{T-T_0})}
 
@@ -54,42 +47,12 @@ where:
 \deqn{d = \frac{\log(S_0/K) + \frac{1}{2}(r + \frac{\sigma^2}{6})(T-T_0)}{\sigma\sqrt{(T-T_0)/3}}}
 
 and \eqn{N(\cdot)} is the cumulative standard normal distribution function.
-
-This is analogous to the Black-Scholes formula with adjusted parameters:
-\deqn{\hat{\sigma} = \frac{\sigma}{\sqrt{3}}}
-\deqn{\hat{r} = r - \frac{\sigma^2}{3}}
 }
-\section{Note on Risk-Free Rate}{
-
-The parameter \code{r} should be specified as a \strong{gross rate}
-(e.g., \code{r = 1.05} for 5\% per period), NOT as a net rate
-(NOT \code{r = 0.05}). This is standard in the binomial model and consistent
-with the rest of the AsianOptPI package.
-
-However, for the Kemna-Vorst continuous-time model, \code{r} is typically
-interpreted as the continuously compounded rate. If you have a gross rate
-\code{r_gross}, convert it using: \code{r = log(r_gross)}.
-}
-
 \examples{
-# Basic example: at-the-money call option
 price_kemna_vorst_geometric(
   S0 = 100, K = 100, r = 0.05, sigma = 0.2,
   T0 = 0, T = 1, option_type = "call"
 )
-
-# Compare call and put prices
-call_price <- price_kemna_vorst_geometric(100, 100, 0.05, 0.3, 0, 1, "call")
-put_price <- price_kemna_vorst_geometric(100, 100, 0.05, 0.3, 0, 1, "put")
-cat("Call:", call_price, "Put:", put_price, "\n")
-
-# Out-of-the-money option
-price_kemna_vorst_geometric(100, 120, 0.05, 0.2, 0, 1, "call")
-
-# Different averaging periods
-price_kemna_vorst_geometric(100, 100, 0.05, 0.2, 0, 0.25, "call")  # 3 months
-price_kemna_vorst_geometric(100, 100, 0.05, 0.2, 0, 0.5, "call")   # 6 months
-price_kemna_vorst_geometric(100, 100, 0.05, 0.2, 0, 1, "call")     # 1 year
 
 }
 \references{

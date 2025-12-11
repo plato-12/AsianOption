@@ -94,44 +94,6 @@ price_kemna_vorst_geometric <- function(S0, K, r, sigma, T0, T,
   return(price)
 }
 
-
-#' Kemna-Vorst Geometric Average Asian Option (Alternative Parameterization)
-#'
-#' Alternative interface using discrete parameters (n steps, up/down factors)
-#' instead of continuous parameters (sigma, time). This provides compatibility
-#' with binomial tree conventions.
-#'
-#' @param S0 Numeric. Initial stock price. Must be positive.
-#' @param K Numeric. Strike price. Must be positive.
-#' @param r Numeric. Gross risk-free rate per period. Must be positive.
-#' @param u Numeric. Up factor in binomial tree. Must be > 1.
-#' @param d Numeric. Down factor in binomial tree. Must be < 1 and < u.
-#' @param n Integer. Number of time steps. Must be positive.
-#' @param option_type Character. Type of option: "call" (default) or "put".
-#'
-#' @return Numeric. The analytical price of the geometric average Asian option.
-#'
-#' @details
-#' This function converts binomial parameters (u, d, n) to continuous parameters
-#' (sigma, T) and calls \code{price_kemna_vorst_geometric}.
-#'
-#' The conversion formulas are:
-#' \deqn{\sigma = \sqrt{\frac{\log(u/d)^2}{4 \Delta t}}}
-#' \deqn{\mu = \frac{\log(u) + \log(d)}{2 \Delta t}}
-#'
-#' where \eqn{\Delta t = 1/n} is the time step size.
-#'
-#' Note: This assumes the binomial tree is constructed to match a continuous
-#' lognormal process, which may not hold exactly for all parameter combinations.
-#'
-#' @examples
-#' # Using binomial tree parameters
-#' price_kemna_vorst_geometric_binomial(
-#'   S0 = 100, K = 100, r = 1.05,
-#'   u = 1.2, d = 0.8, n = 10
-#' )
-#'
-#' @export
 price_kemna_vorst_geometric_binomial <- function(S0, K, r, u, d, n,
                                                    option_type = "call") {
 
