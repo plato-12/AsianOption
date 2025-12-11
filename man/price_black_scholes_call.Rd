@@ -54,6 +54,5 @@ Black, F., & Scholes, M. (1973). The Pricing of Options and Corporate Liabilitie
 \doi{10.1086/260062}
 }
 \seealso{
-\code{\link{price_black_scholes_put}}, \code{\link{price_european_call}},
-  \code{\link{price_black_scholes_binomial}}
+\code{\link{price_black_scholes_put}}, \code{\link{price_european_call}}
 }
