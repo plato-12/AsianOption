@@ -2,7 +2,7 @@
 % Please edit documentation in R/european_option.R
 \name{price_european}
 \alias{price_european}
-\title{Price European Option with Price Impact (Unified Interface)}
+\title{Price European Option with Price Impact}
 \usage{
 price_european(
   S0,

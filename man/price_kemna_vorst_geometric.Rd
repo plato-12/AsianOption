@@ -2,7 +2,7 @@
 % Please edit documentation in R/kemna_vorst_geometric.R
 \name{price_kemna_vorst_geometric}
 \alias{price_kemna_vorst_geometric}
-\title{Kemna-Vorst Geometric Average Asian Call Option}
+\title{Kemna-Vorst Geometric Average Asian Option}
 \usage{
 price_kemna_vorst_geometric(S0, K, r, sigma, T0, T, option_type = "call")
 }

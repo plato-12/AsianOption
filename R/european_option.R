@@ -1,4 +1,4 @@
-#' Price European Option with Price Impact (Unified Interface)
+#' Price European Option with Price Impact
 #'
 #' Computes the exact price of a European option (call or put) using the
 #' Cox-Ross-Rubinstein (CRR) binomial model with price impact from

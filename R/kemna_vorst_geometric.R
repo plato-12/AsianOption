@@ -1,4 +1,4 @@
-#' Kemna-Vorst Geometric Average Asian Call Option
+#' Kemna-Vorst Geometric Average Asian Option
 #'
 #' Calculates the price of a geometric average Asian call option using the
 #' closed-form analytical solution from Kemna & Vorst (1990). This is the
