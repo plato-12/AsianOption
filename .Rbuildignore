@@ -4,3 +4,10 @@
 ^Rplots\.pdf$
 ^doc$
 ^Meta$
+^\.github$
+^LICENSE$
+^\.git$
+^\.gitignore$
+^\.DS_Store$
+^\.RData$
+^\.Rhistory$

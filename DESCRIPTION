@@ -14,11 +14,12 @@ Authors@R: c(
 Maintainer: Priyanshu Tiwari <tiwari.priyanshu.iitk@gmail.com>
 Description: Implements binomial tree pricing for geometric and arithmetic
     Asian options incorporating market price impact from hedging activities.
-    Uses the Cox-Ross-Rubinstein ('CRR') model with the replicating portfolio
+    Uses the Cox-Ross-Rubinstein (CRR) model with the replicating portfolio
     method. Provides exact pricing for geometric Asian options and bounds
     for arithmetic Asian options based on Jensen's inequality. The price
     impact mechanism models how hedging volumes affect stock prices, leading
-    to modified risk-neutral probabilities. References: Tiwari, P., & Majumdar, S. (2025). Asian option valuation under price impact. *arXiv preprint*. <https://doi.org/10.48550/arXiv.2512.07154>
+    to modified risk-neutral probabilities. Based on the methodology described
+    in Tiwari and Majumdar (2025) <doi:10.48550/arXiv.2512.07154>.
 License: GPL (>= 3) 
 URL: https://github.com/plato-12/AsianOption
 BugReports: https://github.com/plato-12/AsianOption/issues
