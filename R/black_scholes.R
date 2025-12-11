@@ -118,7 +118,7 @@ price_black_scholes_call <- function(S0, K, r, sigma, time_to_maturity) {
 #' price_black_scholes_put(S0 = 100, K = 100, r = 0.05, sigma = 0.2,
 #'                         time_to_maturity = 1)
 #'
-#' @seealso \code{\link{price_black_scholes_call}}, \code{\link{price_european_put}}
+#' @seealso \code{\link{price_black_scholes_call}}
 #'
 #' @export
 price_black_scholes_put <- function(S0, K, r, sigma, time_to_maturity) {

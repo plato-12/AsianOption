@@ -89,7 +89,7 @@ factors <- compute_adjusted_factors(u = 1.2, d = 0.8,
 print(factors)
 }
 \references{
-Tiwari, P., & Majumdar, S. (2024). Asian option valuation under price impact.
+Tiwari, P., & Majumdar, S. (2025). Asian option valuation under price impact.
 \emph{arXiv preprint}. \doi{10.48550/arXiv.2512.07154}
 }
 \seealso{
@@ -102,6 +102,11 @@ Useful links:
 }
 \author{
 \strong{Maintainer}: Priyanshu Tiwari \email{tiwari.priyanshu.iitk@gmail.com}
+
+Other contributors:
+\itemize{
+  \item Sourav Majumdar \email{souravm@iitk.ac.in} [contributor]
+}
 
 }
 \keyword{internal}

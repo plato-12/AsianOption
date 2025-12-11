@@ -82,7 +82,7 @@ price_geometric_asian(
 
 }
 \references{
-Tiwari, P., & Majumdar, S. (2024). Asian option valuation under price impact.
+Tiwari, P., & Majumdar, S. (2025). Asian option valuation under price impact.
 \emph{arXiv preprint}. \doi{10.48550/arXiv.2512.07154}
 }
 \seealso{
