@@ -10,8 +10,6 @@
 
 AsianOption implements binomial tree pricing for Asian options incorporating market price impact from hedging activities. The package extends the Cox-Ross-Rubinstein (CRR) binomial model to account for price movements caused by large hedging trades.
 
-**Key Features:** - Exact geometric Asian option pricing via path enumeration (n ≤ 20) - Monte Carlo simulation for large time steps (n \> 20) - Automatic method selection for optimal performance - Arithmetic Asian option bounds using Jensen's inequality - Price impact modeling for hedging-induced price changes - Comprehensive input validation and no-arbitrage checks - Efficient C++ implementation via Rcpp
-
 ## Installation
 
 ``` r
