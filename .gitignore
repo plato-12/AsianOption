@@ -2,6 +2,7 @@
 .Rhistory
 .RData
 .Ruserdata
+AsianOptPI.Rproj
 src/*.o
 src/*.so
 src/*.dll
