@@ -160,13 +160,6 @@ print.kemna_vorst_arithmetic <- function(x, ...) {
   cat(sprintf("95%% CI:              [%.6f, %.6f]\n", x$lower_ci, x$upper_ci))
   cat("\n")
 
-  cat(sprintf("Geometric Price (control):  %.6f\n", x$geometric_price))
-  cat(sprintf("Correlation (A,G):          %.4f\n", x$correlation))
-  cat(sprintf("Variance Reduction Factor:  %.4f (%.1fx improvement)\n",
-              x$variance_reduction_factor,
-              1 / x$variance_reduction_factor))
-  cat("\n")
-
   cat(sprintf("Simulations:         %d\n", x$n_simulations))
   cat(sprintf("Time Steps:          %d\n", x$n_steps))
 
