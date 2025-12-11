@@ -90,59 +90,11 @@ print(mc_result)
 -   `compute_p_adj()`: Compute adjusted risk-neutral probability
 -   `check_no_arbitrage()`: Validate no-arbitrage conditions
 
-## Examples
-
-### Sensitivity Analysis
-
-``` r
-# Effect of price impact on option value
-lambdas <- seq(0, 0.5, by = 0.05)
-prices <- sapply(lambdas, function(lam) {
-  price_geometric_asian(100, 100, 1.05, 1.2, 0.8, lam, 1, 1, 5)
-})
-
-plot(lambdas, prices, type = "b",
-     xlab = expression(lambda), ylab = "Option Price",
-     main = "Price Impact Effect")
-```
-
-### Comparing Methods
-
-``` r
-# Small n: exact method
-exact <- price_geometric_asian(
-  S0 = 100, K = 100, r = 1.05, u = 1.2, d = 0.8,
-  lambda = 0.1, v_u = 1, v_d = 1, n = 15,
-  method = "exact"
-)
-
-# Large n: Monte Carlo
-mc <- price_geometric_asian(
-  S0 = 100, K = 100, r = 1.05, u = 1.2, d = 0.8,
-  lambda = 0.1, v_u = 1, v_d = 1, n = 50,
-  method = "mc", seed = 42
-)
-```
-
-## Vignettes
-
-Two comprehensive vignettes are available:
-
-``` r
-vignette("examples", package = "AsianOption")
-```
-
-## Getting Help
-
--   Package documentation: `?AsianOption`
--   Function help: `?price_geometric_asian`
--   Report issues: [GitHub Issues](https://github.com/plato-12/AsianOption/issues)
-
 ## Citation
 
 If you use this package in your research, please cite:
 
-Tiwari, P., & Majumdar, S. (2024). Asian option valuation under price impact. *arXiv preprint*. <https://doi.org/10.48550/arXiv.2512.07154>
+Tiwari, P., & Majumdar, S. (2025). Asian option valuation under price impact. *arXiv preprint*. <https://doi.org/10.48550/arXiv.2512.07154>
 
 ## License
 
