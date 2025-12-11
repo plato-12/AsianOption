@@ -101,7 +101,7 @@ Useful links:
 
 }
 \author{
-\strong{Maintainer}: Priyanshu Tiwari \email{tiwari.priyanshu.iitk@gmail.com}
+\strong{Maintainer}: Priyanshu Tiwari \email{tiwari.priyanshu.iitk@gmail.com} (\href{https://orcid.org/0009-0007-8917-4689}{ORCID})
 
 Other contributors:
 \itemize{

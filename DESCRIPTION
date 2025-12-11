@@ -6,7 +6,8 @@ Date: 2025-12-04
 Authors@R: c(
     person("Priyanshu", "Tiwari",
            email = "tiwari.priyanshu.iitk@gmail.com",
-           role = c("aut", "cre")),
+           role = c("aut", "cre"),
+           comment = c(ORCID = "0009-0007-8917-4689")),
     person("Sourav", "Majumdar",
            email = "souravm@iitk.ac.in",
            role = c("ctb"))
@@ -32,9 +33,6 @@ LinkingTo:
     Rcpp
 Suggests:
     testthat (>= 3.0.0),
-    knitr,
-    rmarkdown,
     covr
-VignetteBuilder: knitr
 RoxygenNote: 7.3.3
 
