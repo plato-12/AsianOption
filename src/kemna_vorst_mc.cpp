@@ -2,66 +2,7 @@
 #include <cmath>
 using namespace Rcpp;
 
-//' Kemna-Vorst Monte Carlo Simulation for Arithmetic Average Asian Option
-//'
-//' Implements the Kemna-Vorst (1990) Monte Carlo method with variance reduction
-//' using the geometric average as a control variate. This is the standard
-//' benchmark implementation WITHOUT price impact.
-//'
-//' @param S0 Initial stock price at time T0
-//' @param K Strike price
-//' @param r Continuously compounded risk-free rate
-//' @param sigma Volatility (annualized)
-//' @param T0 Start of averaging period
-//' @param T Maturity time
-//' @param n Number of averaging points (observations)
-//' @param M Number of Monte Carlo simulations
-//' @param option_type String: "call" or "put"
-//' @param use_control_variate Boolean: use variance reduction (default TRUE)
-//' @param seed Integer: random seed for reproducibility (default 0 = no seed)
-//'
-//' @return List containing:
-//' \describe{
-//'   \item{price}{Estimated option price}
-//'   \item{std_error}{Standard error of the estimate}
-//'   \item{lower_ci}{Lower 95\% confidence interval}
-//'   \item{upper_ci}{Upper 95\% confidence interval}
-//'   \item{geometric_price}{Analytical geometric average price (control variate)}
-//'   \item{correlation}{Correlation between arithmetic and geometric payoffs}
-//'   \item{variance_reduction_factor}{Ratio of variances (with/without control variate)}
-//' }
-//'
-//' @details
-//' Implements the Kemna & Vorst (1990) Monte Carlo algorithm with control variate
-//' variance reduction:
-//'
-//' 1. Generate price paths under risk-neutral dynamics
-//' 2. Calculate arithmetic and geometric averages for each path
-//' 3. Calculate discounted payoffs for both averages
-//' 4. Use the geometric average (with known analytical price) as a control variate
-//'    to reduce variance of the arithmetic average estimate
-//'
-//' The variance reduction can be dramatic (factor 10-70) because the
-//' correlation between arithmetic and geometric averages is typically > 0.95.
-//' This is a standard benchmark method WITHOUT price impact.
-//'
-//' @references
-//' Kemna, A.G.Z. and Vorst, A.C.F. (1990). "A Pricing Method for Options Based
-//' on Average Asset Values." \emph{Journal of Banking and Finance}, 14, 113-129.
-//'
-//' @examples
-//' \donttest{
-//' # Basic example
-//' result <- price_kemna_vorst_arithmetic_cpp(
-//'   S0 = 100, K = 100, r = 0.05, sigma = 0.2,
-//'   T0 = 0, T = 1, n = 50, M = 10000,
-//'   option_type = "call"
-//' )
-//' print(result$price)
-//' print(result$std_error)
-//' }
-//'
-//' @export
+
 // [[Rcpp::export]]
 List price_kemna_vorst_arithmetic_cpp(
     double S0, double K, double r, double sigma,
@@ -199,26 +140,6 @@ List price_kemna_vorst_arithmetic_cpp(
   );
 }
 
-
-//' Kemna-Vorst Monte Carlo with Binomial Parameters
-//'
-//' Alternative interface using discrete binomial parameters instead of
-//' continuous parameters.
-//'
-//' @param S0 Initial stock price
-//' @param K Strike price
-//' @param r Gross risk-free rate per period
-//' @param u Up factor
-//' @param d Down factor
-//' @param n Number of time steps
-//' @param M Number of Monte Carlo simulations
-//' @param option_type String: "call" or "put"
-//' @param use_control_variate Boolean: use variance reduction
-//' @param seed Integer: random seed
-//'
-//' @return List with pricing results (same as price_kemna_vorst_arithmetic_cpp)
-//'
-//' @export
 // [[Rcpp::export]]
 List price_kemna_vorst_arithmetic_binomial_cpp(
     double S0, double K, double r, double u, double d,

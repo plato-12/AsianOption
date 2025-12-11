@@ -46,20 +46,8 @@ This relationship holds exactly for European options without dividends.
 }
 
 \examples{
-# Basic at-the-money put
 price_black_scholes_put(S0 = 100, K = 100, r = 0.05, sigma = 0.2,
                         time_to_maturity = 1)
-
-# Verify put-call parity
-S0 <- 100; K <- 100; r <- 0.05; sigma <- 0.2; time_to_maturity <- 1
-call <- price_black_scholes_call(S0, K, r, sigma, time_to_maturity)
-put <- price_black_scholes_put(S0, K, r, sigma, time_to_maturity)
-parity_lhs <- call - put
-parity_rhs <- S0 - K * exp(-r * time_to_maturity)
-cat("Put-Call Parity Check:\n")
-cat("C - P =", parity_lhs, "\n")
-cat("S - Ke^(-rT) =", parity_rhs, "\n")
-cat("Difference:", abs(parity_lhs - parity_rhs), "\n")
 
 }
 \references{

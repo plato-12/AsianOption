@@ -159,7 +159,7 @@ vignette("examples", package = "AsianOption")
 
 If you use this package in your research, please cite:
 
-Tiwari, P., & Majumdar, S. (2024). Asian option valuation under price impact. *arXiv preprint*. [https://doi.org/10.48550/arXiv.2512.07154](https://doi.org/10.48550/arXiv.2512.07154)
+Tiwari, P., & Majumdar, S. (2024). Asian option valuation under price impact. *arXiv preprint*. <https://doi.org/10.48550/arXiv.2512.07154>
 
 ## License
 

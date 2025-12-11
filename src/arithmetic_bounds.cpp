@@ -7,38 +7,6 @@
 // External function from geometric_asian.cpp
 std::vector<std::vector<int>> generate_all_paths(int n);
 
-//' Compute Bounds for Arithmetic Asian Option
-//'
-//' Computes lower and upper bounds for the arithmetic Asian option (call or put)
-//' using Jensen's inequality and the relationship between arithmetic
-//' and geometric means.
-//'
-//' @param S0 Initial stock price
-//' @param K Strike price
-//' @param r Gross risk-free rate
-//' @param u Base up factor
-//' @param d Base down factor
-//' @param lambda Price impact coefficient
-//' @param v_u Hedging volume on up move
-//' @param v_d Hedging volume on down move
-//' @param n Number of time steps
-//' @param option_type Type of option: "call" or "put" (default: "call")
-//'
-//' @return List containing:
-//' \itemize{
-//'   \item \code{lower_bound}: Lower bound (geometric option price)
-//'   \item \code{upper_bound}: Upper bound
-//'   \item \code{rho_star}: Spread parameter
-//'   \item \code{EQ_G}: Expected geometric average
-//' }
-//'
-//' @details
-//' Computes rigorous upper and lower bounds using Jensen's inequality and the
-//' AM-GM inequality. The lower bound is the geometric Asian option price, and
-//' the upper bound uses a global spread parameter. See the package vignettes
-//' and reference paper for detailed mathematical formulations.
-//'
-//' @export
 // [[Rcpp::export]]
 Rcpp::List arithmetic_asian_bounds_cpp(
     double S0, double K, double r, double u, double d,
@@ -117,35 +85,6 @@ double compute_path_rho(const std::vector<double>& prices) {
 }
 
 
-//' Compute Arithmetic Asian Bounds with Path-Specific Upper Bound
-//'
-//' Computes lower bound (geometric option) and two upper bounds:
-//' global (using rho*) and path-specific (using all 2^n paths).
-//'
-//' @param S0 Initial stock price
-//' @param K Strike price
-//' @param r Gross risk-free rate
-//' @param u Base up factor
-//' @param d Base down factor
-//' @param lambda Price impact coefficient
-//' @param v_u Hedging volume on up move
-//' @param v_d Hedging volume on down move
-//' @param n Number of time steps
-//' @param compute_path_specific If TRUE, compute path-specific bound using all paths
-//' @param option_type Type of option: "call" or "put" (default: "call")
-//'
-//' @return List with components:
-//' \itemize{
-//'   \item \code{lower_bound}: Lower bound (geometric option price)
-//'   \item \code{upper_bound_global}: Global upper bound using rho*
-//'   \item \code{upper_bound_path_specific}: Path-specific upper bound (NA if not computed)
-//'   \item \code{rho_star}: Spread parameter
-//'   \item \code{EQ_G}: Expected geometric average
-//'   \item \code{V0_G}: Geometric option price (same as lower_bound)
-//'   \item \code{n_paths_used}: Number of paths used (2^n if path-specific computed, 0 otherwise)
-//' }
-//'
-//' @export
 // [[Rcpp::export]]
 Rcpp::List arithmetic_asian_bounds_extended_cpp(
     double S0, double K, double r, double u, double d,

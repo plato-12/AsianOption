@@ -36,35 +36,9 @@
 #' \emph{Journal of Political Economy}, 81(3), 637-654.
 #' \doi{10.1086/260062}
 #'
-#' Cox, J. C., Ross, S. A., & Rubinstein, M. (1979).
-#' Option pricing: A simplified approach.
-#' \emph{Journal of Financial Economics}, 7(3), 229-263.
-#' \doi{10.1016/0304-405X(79)90015-1}
-#'
 #' @examples
-#' # Basic at-the-money call
 #' price_black_scholes_call(S0 = 100, K = 100, r = 0.05, sigma = 0.2,
 #'                          time_to_maturity = 1)
-#'
-#' # Out-of-the-money call
-#' price_black_scholes_call(S0 = 100, K = 110, r = 0.05, sigma = 0.2,
-#'                          time_to_maturity = 1)
-#'
-#' # In-the-money call
-#' price_black_scholes_call(S0 = 100, K = 90, r = 0.05, sigma = 0.2,
-#'                          time_to_maturity = 1)
-#'
-#' # Effect of volatility
-#' price_black_scholes_call(S0 = 100, K = 100, r = 0.05, sigma = 0.1,
-#'                          time_to_maturity = 1)
-#' price_black_scholes_call(S0 = 100, K = 100, r = 0.05, sigma = 0.3,
-#'                          time_to_maturity = 1)
-#'
-#' # Short-dated vs long-dated options
-#' price_black_scholes_call(S0 = 100, K = 100, r = 0.05, sigma = 0.2,
-#'                          time_to_maturity = 0.25)
-#' price_black_scholes_call(S0 = 100, K = 100, r = 0.05, sigma = 0.2,
-#'                          time_to_maturity = 1.0)
 #'
 #' @seealso \code{\link{price_black_scholes_put}}, \code{\link{price_european_call}},
 #'   \code{\link{price_black_scholes_binomial}}
@@ -144,20 +118,8 @@ price_black_scholes_call <- function(S0, K, r, sigma, time_to_maturity) {
 #' \doi{10.1086/260062}
 #'
 #' @examples
-#' # Basic at-the-money put
 #' price_black_scholes_put(S0 = 100, K = 100, r = 0.05, sigma = 0.2,
 #'                         time_to_maturity = 1)
-#'
-#' # Verify put-call parity
-#' S0 <- 100; K <- 100; r <- 0.05; sigma <- 0.2; time_to_maturity <- 1
-#' call <- price_black_scholes_call(S0, K, r, sigma, time_to_maturity)
-#' put <- price_black_scholes_put(S0, K, r, sigma, time_to_maturity)
-#' parity_lhs <- call - put
-#' parity_rhs <- S0 - K * exp(-r * time_to_maturity)
-#' cat("Put-Call Parity Check:\n")
-#' cat("C - P =", parity_lhs, "\n")
-#' cat("S - Ke^(-rT) =", parity_rhs, "\n")
-#' cat("Difference:", abs(parity_lhs - parity_rhs), "\n")
 #'
 #' @seealso \code{\link{price_black_scholes_call}}, \code{\link{price_european_put}}
 #'

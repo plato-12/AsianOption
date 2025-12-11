@@ -43,64 +43,15 @@ This formula assumes:
   \item Continuous trading with no transaction costs or price impact
 }
 }
-\section{Connection to Binomial Model}{
-
-As the number of time steps \eqn{n \to \infty}, the Cox-Ross-Rubinstein (CRR)
-binomial model converges to the Black-Scholes price, provided:
-\itemize{
-  \item Time step: \eqn{\Delta t = T/n}
-  \item Up factor: \eqn{u = e^{\sigma\sqrt{\Delta t}}}
-  \item Down factor: \eqn{d = e^{-\sigma\sqrt{\Delta t}}}
-  \item Gross rate per step: \eqn{r_{gross} = e^{r \Delta t}}
-}
-
-See \code{vignette("theory", package = "AsianOptPI")} and
-\code{benchmark/THEORETICAL_CONNECTION.md} for detailed mathematical derivations.
-}
-
-\section{Rate Convention}{
-
-Unlike the binomial functions in this package which use gross rates
-(e.g., \code{r = 1.05}), this function uses the continuously compounded rate
-(e.g., \code{r = 0.05}). To convert from gross to continuous:
-\deqn{r_{continuous} = \log(r_{gross}) / T}
-}
-
 \examples{
-# Basic at-the-money call
 price_black_scholes_call(S0 = 100, K = 100, r = 0.05, sigma = 0.2,
                          time_to_maturity = 1)
-
-# Out-of-the-money call
-price_black_scholes_call(S0 = 100, K = 110, r = 0.05, sigma = 0.2,
-                         time_to_maturity = 1)
-
-# In-the-money call
-price_black_scholes_call(S0 = 100, K = 90, r = 0.05, sigma = 0.2,
-                         time_to_maturity = 1)
-
-# Effect of volatility
-price_black_scholes_call(S0 = 100, K = 100, r = 0.05, sigma = 0.1,
-                         time_to_maturity = 1)
-price_black_scholes_call(S0 = 100, K = 100, r = 0.05, sigma = 0.3,
-                         time_to_maturity = 1)
-
-# Short-dated vs long-dated options
-price_black_scholes_call(S0 = 100, K = 100, r = 0.05, sigma = 0.2,
-                         time_to_maturity = 0.25)
-price_black_scholes_call(S0 = 100, K = 100, r = 0.05, sigma = 0.2,
-                         time_to_maturity = 1.0)
 
 }
 \references{
 Black, F., & Scholes, M. (1973). The Pricing of Options and Corporate Liabilities.
 \emph{Journal of Political Economy}, 81(3), 637-654.
 \doi{10.1086/260062}
-
-Cox, J. C., Ross, S. A., & Rubinstein, M. (1979).
-Option pricing: A simplified approach.
-\emph{Journal of Financial Economics}, 7(3), 229-263.
-\doi{10.1016/0304-405X(79)90015-1}
 }
 \seealso{
 \code{\link{price_black_scholes_put}}, \code{\link{price_european_call}},
