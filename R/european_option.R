@@ -47,7 +47,7 @@
 #' put <- price_european(100, 100, 1.05, 1.2, 0.8, 0.1, 1, 1, 10, "put")
 #'
 #' @references
-#' Tiwari, P., & Majumdar, S. (2024). Asian option valuation under price impact.
+#' Tiwari, P., & Majumdar, S. (2025). Asian option valuation under price impact.
 #' \emph{arXiv preprint}. \doi{10.48550/arXiv.2512.07154}
 #'
 #' @seealso \code{\link{price_european_call}}, \code{\link{price_european_put}},

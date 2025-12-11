@@ -124,28 +124,11 @@ mc <- price_geometric_asian(
 )
 ```
 
-## Validation
-
-All inputs are validated automatically: - Positivity: S0, K, r, u, d \> 0 - Ordering: u \> d - No-arbitrage: $\tilde{d} < r < \tilde{u}$ - Probability: $p^{adj} \in [0,1]$
-
-``` r
-# Check no-arbitrage condition
-check_no_arbitrage(
-  r = 1.05, u = 1.2, d = 0.8,
-  lambda = 0.1, v_u = 1, v_d = 1
-)
-#> [1] TRUE
-```
-
 ## Vignettes
 
 Two comprehensive vignettes are available:
 
 ``` r
-# Theoretical foundation
-vignette("theory", package = "AsianOption")
-
-# Practical examples
 vignette("examples", package = "AsianOption")
 ```
 
