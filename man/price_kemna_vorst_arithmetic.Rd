@@ -10,7 +10,7 @@ price_kemna_vorst_arithmetic(
   r,
   sigma,
   T0,
-  T,
+  T_mat,
   n,
   M = 10000,
   option_type = "call",
@@ -33,7 +33,7 @@ non-negative.}
 
 \item{T0}{Numeric. Start time of averaging period. Must be non-negative.}
 
-\item{T}{Numeric. Maturity time. Must be greater than T0.}
+\item{T_mat}{Numeric. Maturity time. Must be greater than T0.}
 
 \item{n}{Integer. Number of averaging points (observations). Must be positive.}
 
@@ -75,7 +75,7 @@ This implements the Kemna & Vorst (1990) method WITHOUT price impact.
 \examples{
 price_kemna_vorst_arithmetic(
   S0 = 100, K = 100, r = 0.05, sigma = 0.2,
-  T0 = 0, T = 1, n = 50, M = 10000
+  T0 = 0, T_mat = 1, n = 50, M = 10000
 )
 
 }

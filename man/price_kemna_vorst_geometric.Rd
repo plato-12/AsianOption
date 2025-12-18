@@ -4,7 +4,7 @@
 \alias{price_kemna_vorst_geometric}
 \title{Kemna-Vorst Geometric Average Asian Option}
 \usage{
-price_kemna_vorst_geometric(S0, K, r, sigma, T0, T, option_type = "call")
+price_kemna_vorst_geometric(S0, K, r, sigma, T0, T_mat, option_type = "call")
 }
 \arguments{
 \item{S0}{Numeric. Initial stock price at time T0 (start of averaging period).
@@ -20,7 +20,7 @@ non-negative.}
 
 \item{T0}{Numeric. Start time of averaging period. Must be non-negative.}
 
-\item{T}{Numeric. Maturity time. Must be greater than T0.}
+\item{T_mat}{Numeric. Maturity time. Must be greater than T0.}
 
 \item{option_type}{Character. Type of option: "call" (default) or "put".}
 }
@@ -51,7 +51,7 @@ and \eqn{N(\cdot)} is the cumulative standard normal distribution function.
 \examples{
 price_kemna_vorst_geometric(
   S0 = 100, K = 100, r = 0.05, sigma = 0.2,
-  T0 = 0, T = 1, option_type = "call"
+  T0 = 0, T_mat = 1, option_type = "call"
 )
 
 }

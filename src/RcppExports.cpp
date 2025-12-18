@@ -121,8 +121,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // price_kemna_vorst_arithmetic_cpp
-List price_kemna_vorst_arithmetic_cpp(double S0, double K, double r, double sigma, double T0, double T, int n, int M, std::string option_type, bool use_control_variate, int seed);
-RcppExport SEXP _AsianOption_price_kemna_vorst_arithmetic_cpp(SEXP S0SEXP, SEXP KSEXP, SEXP rSEXP, SEXP sigmaSEXP, SEXP T0SEXP, SEXP TSEXP, SEXP nSEXP, SEXP MSEXP, SEXP option_typeSEXP, SEXP use_control_variateSEXP, SEXP seedSEXP) {
+List price_kemna_vorst_arithmetic_cpp(double S0, double K, double r, double sigma, double T0, double T_mat, int n, int M, std::string option_type, bool use_control_variate, int seed);
+RcppExport SEXP _AsianOption_price_kemna_vorst_arithmetic_cpp(SEXP S0SEXP, SEXP KSEXP, SEXP rSEXP, SEXP sigmaSEXP, SEXP T0SEXP, SEXP T_matSEXP, SEXP nSEXP, SEXP MSEXP, SEXP option_typeSEXP, SEXP use_control_variateSEXP, SEXP seedSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -131,13 +131,13 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< double >::type r(rSEXP);
     Rcpp::traits::input_parameter< double >::type sigma(sigmaSEXP);
     Rcpp::traits::input_parameter< double >::type T0(T0SEXP);
-    Rcpp::traits::input_parameter< double >::type T(TSEXP);
+    Rcpp::traits::input_parameter< double >::type T_mat(T_matSEXP);
     Rcpp::traits::input_parameter< int >::type n(nSEXP);
     Rcpp::traits::input_parameter< int >::type M(MSEXP);
     Rcpp::traits::input_parameter< std::string >::type option_type(option_typeSEXP);
     Rcpp::traits::input_parameter< bool >::type use_control_variate(use_control_variateSEXP);
     Rcpp::traits::input_parameter< int >::type seed(seedSEXP);
-    rcpp_result_gen = Rcpp::wrap(price_kemna_vorst_arithmetic_cpp(S0, K, r, sigma, T0, T, n, M, option_type, use_control_variate, seed));
+    rcpp_result_gen = Rcpp::wrap(price_kemna_vorst_arithmetic_cpp(S0, K, r, sigma, T0, T_mat, n, M, option_type, use_control_variate, seed));
     return rcpp_result_gen;
 END_RCPP
 }

@@ -6,7 +6,7 @@ using namespace Rcpp;
 // [[Rcpp::export]]
 List price_kemna_vorst_arithmetic_cpp(
     double S0, double K, double r, double sigma,
-    double T0, double T, int n, int M,
+    double T0, double T_mat, int n, int M,
     std::string option_type = "call",
     bool use_control_variate = true,
     int seed = 0
@@ -17,7 +17,7 @@ List price_kemna_vorst_arithmetic_cpp(
     set_seed(seed);
   }
 
-  double tau = T - T0;
+  double tau = T_mat - T0;
   double dt = tau / n;
   double discount = std::exp(-r * tau);
 

@@ -11,6 +11,9 @@
 
 \item{...}{Additional arguments (ignored)}
 }
+\value{
+Invisibly returns the input object \code{x}. Called for side effects (printing).
+}
 \description{
 Print Method for Kemna-Vorst Arithmetic Results
 }

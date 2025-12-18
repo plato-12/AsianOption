@@ -1,1 +1,1 @@
-PKG_CXXFLAGS = -DRCPP_USE_GLOBAL_ROSTREAM
+## Rcpp flags (using modern Rcpp defaults)

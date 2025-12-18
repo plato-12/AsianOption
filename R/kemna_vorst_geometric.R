@@ -12,7 +12,7 @@
 #' @param sigma Numeric. Volatility (annualized standard deviation). Must be
 #'   non-negative.
 #' @param T0 Numeric. Start time of averaging period. Must be non-negative.
-#' @param T Numeric. Maturity time. Must be greater than T0.
+#' @param T_mat Numeric. Maturity time. Must be greater than T0.
 #' @param option_type Character. Type of option: "call" (default) or "put".
 #'
 #' @return Numeric. The analytical price of the geometric average Asian option.
@@ -40,11 +40,11 @@
 #' @examples
 #' price_kemna_vorst_geometric(
 #'   S0 = 100, K = 100, r = 0.05, sigma = 0.2,
-#'   T0 = 0, T = 1, option_type = "call"
+#'   T0 = 0, T_mat = 1, option_type = "call"
 #' )
 #'
 #' @export
-price_kemna_vorst_geometric <- function(S0, K, r, sigma, T0, T,
+price_kemna_vorst_geometric <- function(S0, K, r, sigma, T0, T_mat,
                                          option_type = "call") {
 
   if (!is.numeric(S0) || length(S0) != 1 || S0 <= 0) {
@@ -62,12 +62,12 @@ price_kemna_vorst_geometric <- function(S0, K, r, sigma, T0, T,
   if (!is.numeric(T0) || length(T0) != 1 || T0 < 0) {
     stop("T0 must be a non-negative number")
   }
-  if (!is.numeric(T) || length(T) != 1 || T <= T0) {
-    stop("T must be greater than T0")
+  if (!is.numeric(T_mat) || length(T_mat) != 1 || T_mat <= T0) {
+    stop("T_mat must be greater than T0")
   }
   option_type <- match.arg(option_type, c("call", "put"))
 
-  tau <- T - T0
+  tau <- T_mat - T0
 
   if (sigma == 0) {
     G_T <- S0 * exp(r * tau / 2)
@@ -114,7 +114,7 @@ price_kemna_vorst_geometric_binomial <- function(S0, K, r, u, d, n,
   sigma <- log(u / d) / (2 * sqrt(dt))
 
   T0 <- 0
-  T <- 1
+  T_mat <- 1
 
-  price_kemna_vorst_geometric(S0, K, r_continuous, sigma, T0, T, option_type)
+  price_kemna_vorst_geometric(S0, K, r_continuous, sigma, T0, T_mat, option_type)
 }

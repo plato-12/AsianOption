@@ -25,8 +25,8 @@ price_geometric_asian_cpp <- function(S0, K, r, u, d, lambda, v_u, v_d, n, optio
     .Call(`_AsianOption_price_geometric_asian_cpp`, S0, K, r, u, d, lambda, v_u, v_d, n, option_type)
 }
 
-price_kemna_vorst_arithmetic_cpp <- function(S0, K, r, sigma, T0, T, n, M, option_type = "call", use_control_variate = TRUE, seed = 0L) {
-    .Call(`_AsianOption_price_kemna_vorst_arithmetic_cpp`, S0, K, r, sigma, T0, T, n, M, option_type, use_control_variate, seed)
+price_kemna_vorst_arithmetic_cpp <- function(S0, K, r, sigma, T0, T_mat, n, M, option_type = "call", use_control_variate = TRUE, seed = 0L) {
+    .Call(`_AsianOption_price_kemna_vorst_arithmetic_cpp`, S0, K, r, sigma, T0, T_mat, n, M, option_type, use_control_variate, seed)
 }
 
 price_kemna_vorst_arithmetic_binomial_cpp <- function(S0, K, r, u, d, n, M, option_type = "call", use_control_variate = TRUE, seed = 0L) {

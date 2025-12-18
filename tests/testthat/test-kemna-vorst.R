@@ -3,7 +3,7 @@
 test_that("Kemna-Vorst geometric average gives positive prices", {
   price <- price_kemna_vorst_geometric(
     S0 = 100, K = 100, r = 0.05, sigma = 0.2,
-    T0 = 0, T = 1, option_type = "call"
+    T0 = 0, T_mat = 1, option_type = "call"
   )
 
   expect_true(is.numeric(price))
@@ -85,7 +85,7 @@ test_that("Kemna-Vorst geometric: input validation", {
   )
   expect_error(
     price_kemna_vorst_geometric(100, 100, 0.05, 0.2, 1, 0, "call"),
-    "T must be greater than T0"
+    "T_mat must be greater than T0"
   )
   expect_error(
     price_kemna_vorst_geometric(100, 100, 0.05, 0.2, 0, 1, "invalid"),
@@ -118,7 +118,7 @@ test_that("Kemna-Vorst geometric binomial: validation", {
 test_that("Kemna-Vorst arithmetic Monte Carlo works", {
   result <- price_kemna_vorst_arithmetic(
     S0 = 100, K = 100, r = 0.05, sigma = 0.2,
-    T0 = 0, T = 1, n = 10, M = 1000,
+    T0 = 0, T_mat = 1, n = 10, M = 1000,
     seed = 123
   )
 
@@ -130,7 +130,7 @@ test_that("Kemna-Vorst arithmetic Monte Carlo works", {
 test_that("Kemna-Vorst arithmetic with diagnostics returns list", {
   result <- price_kemna_vorst_arithmetic(
     S0 = 100, K = 100, r = 0.05, sigma = 0.2,
-    T0 = 0, T = 1, n = 10, M = 1000,
+    T0 = 0, T_mat = 1, n = 10, M = 1000,
     seed = 123, return_diagnostics = TRUE
   )
 
@@ -238,7 +238,7 @@ test_that("Kemna-Vorst arithmetic: input validation", {
   )
   expect_error(
     price_kemna_vorst_arithmetic(100, 100, 0.05, 0.2, 1, 0, 10, 1000),
-    "T must be greater than T0"
+    "T_mat must be greater than T0"
   )
   expect_error(
     price_kemna_vorst_arithmetic(100, 100, 0.05, 0.2, 0, 1, -5, 1000),
@@ -313,10 +313,10 @@ test_that("Kemna-Vorst: comparison with example from paper", {
   r_continuous <- log(1.05)
   sigma <- 0.2
   T0 <- 0
-  T <- 88 / 365
+  T_mat <- 88 / 365
 
   geom_price <- price_kemna_vorst_geometric(
-    S0, K, r_continuous, sigma, T0, T, "call"
+    S0, K, r_continuous, sigma, T0, T_mat, "call"
   )
 
   expect_true(geom_price > 1.0)
