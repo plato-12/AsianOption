@@ -95,3 +95,116 @@ double binomial_coefficient(int n, int k) {
 
     return result;
 }
+
+// Transient impact model functions
+
+TransientAdjustedFactors compute_transient_adjusted_factors(
+    double r, double u, double d,
+    double lambda_P, double lambda_T,
+    double alpha, double psi,
+    double v_m, double I_m
+) {
+    TransientAdjustedFactors factors;
+
+    // Effective impact coefficient
+    double lambda_eff = lambda_P + lambda_T;
+
+    // Volume impact term
+    double v_impact = std::pow(v_m, psi);
+
+    // Adjusted up and down factors
+    // u_tilde = u * exp(lambda_P * v^psi + lambda_T * (I_m + v^psi))
+    // d_tilde = d * exp(-lambda_P * v^psi + lambda_T * (I_m - v^psi))
+
+    factors.u_tilde = u * std::exp(lambda_eff * v_impact + lambda_T * I_m);
+    factors.d_tilde = d * std::exp(-lambda_eff * v_impact + lambda_T * I_m);
+
+    // Risk-neutral probability (I_m cancels out in numerator and denominator)
+    factors.p_adj = (r - factors.d_tilde) / (factors.u_tilde - factors.d_tilde);
+
+    if (factors.p_adj < 0.0 || factors.p_adj > 1.0) {
+        Rcpp::stop("Invalid risk-neutral probability in transient model: p_adj must be in [0,1]");
+    }
+
+    factors.I_m = I_m;
+
+    return factors;
+}
+
+double update_transient_accumulator(
+    double I_m, double alpha, double psi,
+    double v_m, int epsilon_m
+) {
+    // I_{m+1} = alpha * I_m + epsilon_m * v_m^psi
+    double v_impact = std::pow(v_m, psi);
+    return alpha * I_m + epsilon_m * v_impact;
+}
+
+std::vector<double> generate_price_path_transient(
+    double S0,
+    const std::vector<int>& path,
+    double u, double d,
+    double lambda_P, double lambda_T,
+    double alpha, double psi,
+    const std::vector<double>& volumes
+) {
+    int n = path.size();
+    std::vector<double> prices(n + 1);
+
+    prices[0] = S0;
+
+    double I_m = 0.0;  // Initial transient accumulator
+
+    for (int i = 0; i < n; ++i) {
+        // Compute volume impact
+        double v_impact = std::pow(volumes[i], psi);
+        double lambda_eff = lambda_P + lambda_T;
+
+        // Compute adjusted factors
+        double u_tilde = u * std::exp(lambda_eff * v_impact + lambda_T * I_m);
+        double d_tilde = d * std::exp(-lambda_eff * v_impact + lambda_T * I_m);
+
+        // Update price based on move
+        if (path[i] == 1) {
+            prices[i + 1] = prices[i] * u_tilde;
+        } else {
+            prices[i + 1] = prices[i] * d_tilde;
+        }
+
+        // Update transient accumulator: I_{m+1} = alpha * I_m + epsilon_m * v^psi
+        I_m = alpha * I_m + path[i] * v_impact;
+    }
+
+    return prices;
+}
+
+double compute_path_probability_transient(
+    const std::vector<int>& path,
+    double r, double u, double d,
+    double lambda_P, double lambda_T,
+    double alpha, double psi,
+    const std::vector<double>& volumes
+) {
+    int n = path.size();
+    double prob = 1.0;
+    double I_m = 0.0;
+
+    for (int i = 0; i < n; ++i) {
+        // Compute adjusted risk-neutral probability at time i
+        TransientAdjustedFactors factors = compute_transient_adjusted_factors(
+            r, u, d, lambda_P, lambda_T, alpha, psi, volumes[i], I_m
+        );
+
+        // Multiply by probability of this move
+        if (path[i] == 1) {
+            prob *= factors.p_adj;
+        } else {
+            prob *= (1.0 - factors.p_adj);
+        }
+
+        // Update transient accumulator
+        I_m = update_transient_accumulator(I_m, alpha, psi, volumes[i], path[i]);
+    }
+
+    return prob;
+}

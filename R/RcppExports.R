@@ -9,6 +9,10 @@ arithmetic_asian_bounds_extended_cpp <- function(S0, K, r, u, d, lambda, v_u, v_
     .Call(`_AsianOption_arithmetic_asian_bounds_extended_cpp`, S0, K, r, u, d, lambda, v_u, v_d, n, compute_path_specific, option_type)
 }
 
+arithmetic_asian_bounds_transient_cpp <- function(S0, K, r, u, d, lambda_P, lambda_T, alpha, psi, volumes, compute_path_specific = FALSE, option_type = "call") {
+    .Call(`_AsianOption_arithmetic_asian_bounds_transient_cpp`, S0, K, r, u, d, lambda_P, lambda_T, alpha, psi, volumes, compute_path_specific, option_type)
+}
+
 price_european_call_cpp <- function(S0, K, r, u, d, lambda, v_u, v_d, n) {
     .Call(`_AsianOption_price_european_call_cpp`, S0, K, r, u, d, lambda, v_u, v_d, n)
 }
@@ -23,6 +27,14 @@ generate_all_paths <- function(n) {
 
 price_geometric_asian_cpp <- function(S0, K, r, u, d, lambda, v_u, v_d, n, option_type = "call") {
     .Call(`_AsianOption_price_geometric_asian_cpp`, S0, K, r, u, d, lambda, v_u, v_d, n, option_type)
+}
+
+price_geometric_asian_transient_cpp <- function(S0, K, r, u, d, lambda_P, lambda_T, alpha, psi, volumes, option_type = "call") {
+    .Call(`_AsianOption_price_geometric_asian_transient_cpp`, S0, K, r, u, d, lambda_P, lambda_T, alpha, psi, volumes, option_type)
+}
+
+price_geometric_asian_transient_mc_cpp <- function(S0, K, r, u, d, lambda_P, lambda_T, alpha, psi, volumes, n_simulations = 100000L, seed = 42L, option_type = "call") {
+    .Call(`_AsianOption_price_geometric_asian_transient_mc_cpp`, S0, K, r, u, d, lambda_P, lambda_T, alpha, psi, volumes, n_simulations, seed, option_type)
 }
 
 price_kemna_vorst_arithmetic_cpp <- function(S0, K, r, sigma, T0, T_mat, n, M, option_type = "call", use_control_variate = TRUE, seed = 0L) {
