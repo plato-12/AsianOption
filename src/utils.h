@@ -34,6 +34,7 @@ TransientAdjustedFactors compute_transient_adjusted_factors(
 );
 
 // Compute transient accumulator update: I_{m+1} = alpha * I_m + epsilon_m * v_m^psi
+// epsilon_m should be +1 for up move, -1 for down move
 double update_transient_accumulator(
     double I_m, double alpha, double psi,
     double v_m, int epsilon_m

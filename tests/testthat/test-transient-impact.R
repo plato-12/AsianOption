@@ -97,33 +97,32 @@ test_that("Geometric Asian pricing with transient impact works", {
 })
 
 
-test_that("Transient impact reduces to permanent impact when alpha = 0", {
-  # When alpha = 0, transient impact has no memory
-  # For constant volumes, this should match permanent impact
-  # with lambda = lambda_P + lambda_T
+test_that("Transient impact reduces to permanent impact when lambda_T = 0", {
+  # When lambda_T = 0, there is no transient impact component
+  # This should match permanent impact with lambda = lambda_P
 
   volumes <- rep(1, 8)
 
-  # Transient model with alpha = 0
+  # Transient model with lambda_T = 0 (no transient component)
   price_transient <- price_geometric_asian_transient(
     S0 = 100, K = 100, r = 1.05, u = 1.2, d = 0.8,
-    lambda_P = 0.05, lambda_T = 0.05,
-    alpha = 0, psi = 1,
+    lambda_P = 0.1, lambda_T = 0,
+    alpha = 0.5, psi = 1,  # alpha doesn't matter when lambda_T = 0
     volumes = volumes,
     option_type = "call"
   )
 
-  # Permanent model with combined lambda
+  # Permanent model with lambda = lambda_P
   price_permanent <- price_geometric_asian(
     S0 = 100, K = 100, r = 1.05, u = 1.2, d = 0.8,
-    lambda = 0.1,  # lambda_P + lambda_T
+    lambda = 0.1,  # Same as lambda_P above
     v_u = 1, v_d = 1,
     n = 8,
     option_type = "call"
   )
 
-  # Allow small tolerance for numerical differences
-  expect_equal(price_transient, price_permanent, tolerance = 0.01)
+  # Should match exactly (or very close)
+  expect_equal(price_transient, price_permanent, tolerance = 1e-6)
 })
 
 

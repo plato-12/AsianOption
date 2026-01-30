@@ -96,8 +96,6 @@ double binomial_coefficient(int n, int k) {
     return result;
 }
 
-// Transient impact model functions
-
 TransientAdjustedFactors compute_transient_adjusted_factors(
     double r, double u, double d,
     double lambda_P, double lambda_T,
@@ -106,20 +104,12 @@ TransientAdjustedFactors compute_transient_adjusted_factors(
 ) {
     TransientAdjustedFactors factors;
 
-    // Effective impact coefficient
     double lambda_eff = lambda_P + lambda_T;
-
-    // Volume impact term
     double v_impact = std::pow(v_m, psi);
-
-    // Adjusted up and down factors
-    // u_tilde = u * exp(lambda_P * v^psi + lambda_T * (I_m + v^psi))
-    // d_tilde = d * exp(-lambda_P * v^psi + lambda_T * (I_m - v^psi))
 
     factors.u_tilde = u * std::exp(lambda_eff * v_impact + lambda_T * I_m);
     factors.d_tilde = d * std::exp(-lambda_eff * v_impact + lambda_T * I_m);
 
-    // Risk-neutral probability (I_m cancels out in numerator and denominator)
     factors.p_adj = (r - factors.d_tilde) / (factors.u_tilde - factors.d_tilde);
 
     if (factors.p_adj < 0.0 || factors.p_adj > 1.0) {
@@ -135,7 +125,6 @@ double update_transient_accumulator(
     double I_m, double alpha, double psi,
     double v_m, int epsilon_m
 ) {
-    // I_{m+1} = alpha * I_m + epsilon_m * v_m^psi
     double v_impact = std::pow(v_m, psi);
     return alpha * I_m + epsilon_m * v_impact;
 }
@@ -156,15 +145,12 @@ std::vector<double> generate_price_path_transient(
     double I_m = 0.0;  // Initial transient accumulator
 
     for (int i = 0; i < n; ++i) {
-        // Compute volume impact
         double v_impact = std::pow(volumes[i], psi);
         double lambda_eff = lambda_P + lambda_T;
 
-        // Compute adjusted factors
         double u_tilde = u * std::exp(lambda_eff * v_impact + lambda_T * I_m);
         double d_tilde = d * std::exp(-lambda_eff * v_impact + lambda_T * I_m);
 
-        // Update price based on move
         if (path[i] == 1) {
             prices[i + 1] = prices[i] * u_tilde;
         } else {
@@ -172,7 +158,9 @@ std::vector<double> generate_price_path_transient(
         }
 
         // Update transient accumulator: I_{m+1} = alpha * I_m + epsilon_m * v^psi
-        I_m = alpha * I_m + path[i] * v_impact;
+        // Convert path[i] from {0,1} to epsilon {-1,+1}
+        int epsilon = 2 * path[i] - 1;
+        I_m = alpha * I_m + epsilon * v_impact;
     }
 
     return prices;
@@ -203,7 +191,9 @@ double compute_path_probability_transient(
         }
 
         // Update transient accumulator
-        I_m = update_transient_accumulator(I_m, alpha, psi, volumes[i], path[i]);
+        // Convert path[i] from {0,1} to epsilon {-1,+1}
+        int epsilon = 2 * path[i] - 1;
+        I_m = update_transient_accumulator(I_m, alpha, psi, volumes[i], epsilon);
     }
 
     return prob;
