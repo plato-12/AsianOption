@@ -168,28 +168,6 @@ test_that("Transient impact with varying volumes works", {
 })
 
 
-test_that("Monte Carlo pricing with transient impact works", {
-  volumes <- rep(1, 15)
-
-  mc_result <- price_geometric_asian_transient(
-    S0 = 100, K = 100, r = 1.05, u = 1.2, d = 0.8,
-    lambda_P = 0.05, lambda_T = 0.05,
-    alpha = 0.5, psi = 1,
-    volumes = volumes,
-    method = "monte_carlo",
-    n_simulations = 10000,
-    seed = 42
-  )
-
-  expect_s3_class(mc_result, "mc_asian_transient")
-  expect_named(mc_result, c("price", "std_error", "ci_lower", "ci_upper", "n_simulations"))
-  expect_true(mc_result$price >= 0)
-  expect_true(mc_result$std_error >= 0)
-  expect_true(mc_result$ci_lower <= mc_result$price)
-  expect_true(mc_result$ci_upper >= mc_result$price)
-})
-
-
 test_that("Arithmetic bounds with transient impact work", {
   volumes <- rep(1, 6)
 
@@ -283,19 +261,6 @@ test_that("Different psi values affect prices correctly", {
 
 test_that("Print methods work for transient impact", {
   volumes <- rep(1, 5)
-
-  # Monte Carlo result
-  mc_result <- price_geometric_asian_transient(
-    S0 = 100, K = 100, r = 1.05, u = 1.2, d = 0.8,
-    lambda_P = 0.05, lambda_T = 0.05,
-    alpha = 0.5, psi = 1,
-    volumes = volumes,
-    method = "monte_carlo",
-    n_simulations = 1000
-  )
-
-  expect_output(print(mc_result), "Geometric Asian Option Price")
-  expect_output(print(mc_result), "Monte Carlo")
 
   # Arithmetic bounds
   bounds <- arithmetic_asian_bounds_transient(

@@ -16,9 +16,6 @@ price_geometric_asian_transient(
   psi,
   volumes,
   option_type = "call",
-  method = c("exact", "monte_carlo"),
-  n_simulations = 1e+05,
-  seed = 42,
   validate = TRUE
 )
 }
@@ -45,19 +42,10 @@ price_geometric_asian_transient(
 
 \item{option_type}{Character; either "call" (default) or "put"}
 
-\item{method}{Character; "exact" for full enumeration (n <= 20) or
-"monte_carlo" for simulation (n > 20)}
-
-\item{n_simulations}{Number of Monte Carlo simulations (if method = "monte_carlo")}
-
-\item{seed}{Random seed for Monte Carlo (if method = "monte_carlo")}
-
 \item{validate}{Logical; if TRUE, performs input validation}
 }
 \value{
-For method = "exact": Numeric value of the option price.
-  For method = "monte_carlo": List with price, standard error, confidence
-  intervals, and number of simulations.
+Numeric value of the option price.
 }
 \description{
 Computes the price of a geometric Asian option using the binomial model with
@@ -100,17 +88,6 @@ price <- price_geometric_asian_transient(
   lambda_P = 0.08, lambda_T = 0.02,
   alpha = 0.3, psi = 0.5,
   volumes = volumes
-)
-
-# Example 3: Monte Carlo for large n
-volumes <- rep(1, 30)
-mc_result <- price_geometric_asian_transient(
-  S0 = 100, K = 100, r = 1.05, u = 1.2, d = 0.8,
-  lambda_P = 0.05, lambda_T = 0.05,
-  alpha = 0.5, psi = 1,
-  volumes = volumes,
-  method = "monte_carlo",
-  n_simulations = 100000
 )
 
 }

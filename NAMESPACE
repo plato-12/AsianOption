@@ -3,7 +3,6 @@
 S3method(print,arithmetic_bounds)
 S3method(print,arithmetic_bounds_transient)
 S3method(print,kemna_vorst_arithmetic)
-S3method(print,mc_asian_transient)
 S3method(summary,kemna_vorst_arithmetic)
 export(arithmetic_asian_bounds)
 export(arithmetic_asian_bounds_transient)

@@ -14,10 +14,6 @@
 #' @param psi Power-law exponent for volume (typically in [0.5, 1])
 #' @param volumes Vector of hedging volumes at each time step (length n)
 #' @param option_type Character; either "call" (default) or "put"
-#' @param method Character; "exact" for full enumeration (n <= 20) or
-#'   "monte_carlo" for simulation (n > 20)
-#' @param n_simulations Number of Monte Carlo simulations (if method = "monte_carlo")
-#' @param seed Random seed for Monte Carlo (if method = "monte_carlo")
 #' @param validate Logical; if TRUE, performs input validation
 #'
 #' @details
@@ -40,9 +36,7 @@
 #' For constant volumes, the model simplifies: the risk-neutral probability
 #' becomes constant with effective impact coefficient lambda_P + lambda_T.
 #'
-#' @return For method = "exact": Numeric value of the option price.
-#'   For method = "monte_carlo": List with price, standard error, confidence
-#'   intervals, and number of simulations.
+#' @return Numeric value of the option price.
 #'
 #' @export
 #'
@@ -65,17 +59,6 @@
 #'   volumes = volumes
 #' )
 #'
-#' # Example 3: Monte Carlo for large n
-#' volumes <- rep(1, 30)
-#' mc_result <- price_geometric_asian_transient(
-#'   S0 = 100, K = 100, r = 1.05, u = 1.2, d = 0.8,
-#'   lambda_P = 0.05, lambda_T = 0.05,
-#'   alpha = 0.5, psi = 1,
-#'   volumes = volumes,
-#'   method = "monte_carlo",
-#'   n_simulations = 100000
-#' )
-#'
 #' @references
 #' Tiwari, P., & Majumdar, S. (2025). Asian option valuation under price impact.
 #' \emph{arXiv preprint}. \doi{10.48550/arXiv.2512.07154}
@@ -87,9 +70,6 @@ price_geometric_asian_transient <- function(S0, K, r, u, d,
                                              alpha, psi,
                                              volumes,
                                              option_type = "call",
-                                             method = c("exact", "monte_carlo"),
-                                             n_simulations = 100000,
-                                             seed = 42,
                                              validate = TRUE) {
 
   if (validate) {
@@ -97,38 +77,21 @@ price_geometric_asian_transient <- function(S0, K, r, u, d,
                                alpha, psi, volumes)
   }
 
-  method <- match.arg(method)
   option_type <- match.arg(option_type, c("call", "put"))
 
   n <- length(volumes)
 
-  # Automatic method selection
-  if (missing(method)) {
-    method <- if (n <= 20) "exact" else "monte_carlo"
+  if (n > 20) {
+    warning(sprintf("n = %d is large for exact enumeration (2^%d = %d paths). Computation may be slow.",
+                    n, n, 2^n))
   }
 
-  if (method == "exact") {
-    if (n > 20) {
-      warning(sprintf("n = %d is large for exact enumeration. Consider method = 'monte_carlo'.", n))
-    }
+  result <- price_geometric_asian_transient_cpp(
+    S0, K, r, u, d, lambda_P, lambda_T, alpha, psi,
+    volumes, option_type
+  )
 
-    result <- price_geometric_asian_transient_cpp(
-      S0, K, r, u, d, lambda_P, lambda_T, alpha, psi,
-      volumes, option_type
-    )
-
-    return(result)
-
-  } else {
-    # Monte Carlo
-    result <- price_geometric_asian_transient_mc_cpp(
-      S0, K, r, u, d, lambda_P, lambda_T, alpha, psi,
-      volumes, n_simulations, seed, option_type
-    )
-
-    class(result) <- c("mc_asian_transient", "list")
-    return(result)
-  }
+  return(result)
 }
 
 
@@ -215,20 +178,6 @@ arithmetic_asian_bounds_transient <- function(S0, K, r, u, d,
   class(result) <- c("arithmetic_bounds_transient", "list")
 
   return(result)
-}
-
-
-#' @export
-print.mc_asian_transient <- function(x, ...) {
-  cat("Geometric Asian Option Price (Monte Carlo - Transient Impact)\n")
-  cat("=============================================================\n")
-  cat(sprintf("Price:       %.6f\n", x$price))
-  cat(sprintf("Std Error:   %.6f (%.2f%%)\n",
-              x$std_error, 100 * x$std_error / x$price))
-  cat(sprintf("95%% CI:      [%.6f, %.6f]\n", x$ci_lower, x$ci_upper))
-  cat(sprintf("Simulations: %d\n", x$n_simulations))
-
-  invisible(x)
 }
 
 
