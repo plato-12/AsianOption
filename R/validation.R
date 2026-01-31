@@ -133,7 +133,7 @@ validate_transient_inputs <- function(S0, K, r, u, d,
     num_paths <- 2^n
     if (n > 30) {
       warning(sprintf(
-        "n = %d will enumerate 2^%d = %.2e paths. Consider using Monte Carlo.",
+        "n = %d will enumerate 2^%d = %.2e paths. Computation will be very slow.",
         n, n, num_paths
       ))
     } else {
@@ -150,27 +150,41 @@ validate_transient_inputs <- function(S0, K, r, u, d,
   v_max_impact <- v_max^psi
 
   # Maximum transient accumulator (geometric series sum)
+  # I_max = v_max^psi / (1 - alpha) for consecutive up moves
   if (alpha < 1) {
     I_max <- v_max_impact / (1 - alpha)
   } else {
     I_max <- n * v_max_impact
   }
 
-  # Check worst-case no-arbitrage conditions
-  u_tilde_max <- u * exp(lambda_eff * v_max_impact + lambda_T * I_max)
-  d_tilde_min <- d * exp(-lambda_eff * v_max_impact - lambda_T * I_max)
+  # The adjusted factors use alpha * I_m (decayed accumulator)
+  # u_tilde = u * exp(lambda_eff * v + lambda_T * alpha * I_m)
+  # d_tilde = d * exp(-lambda_eff * v + lambda_T * alpha * I_m)
+  #
+  # For no-arbitrage: d_tilde < r < u_tilde must hold for all paths
+  # Worst case for d_tilde < r: when alpha * I_m is maximum (d_tilde largest)
+  # Worst case for r < u_tilde: when alpha * I_m is minimum (u_tilde smallest)
 
-  if (d_tilde_min >= r) {
+  alpha_I_max <- alpha * I_max
+  alpha_I_min <- -alpha * I_max  # Symmetric: consecutive down moves
+
+  # Worst-case d_tilde (maximum value, when alpha * I_m is maximum)
+  d_tilde_max <- d * exp(-lambda_eff * v_max_impact + lambda_T * alpha_I_max)
+
+  # Worst-case u_tilde (minimum value, when alpha * I_m is minimum)
+  u_tilde_min <- u * exp(lambda_eff * v_max_impact + lambda_T * alpha_I_min)
+
+  if (d_tilde_max >= r) {
     stop(sprintf(
       "No-arbitrage condition may be violated: worst-case d_tilde (%.4f) >= r (%.4f).",
-      d_tilde_min, r
+      d_tilde_max, r
     ))
   }
 
-  if (r >= u_tilde_max) {
+  if (r >= u_tilde_min) {
     stop(sprintf(
       "No-arbitrage condition may be violated: r (%.4f) >= worst-case u_tilde (%.4f).",
-      r, u_tilde_max
+      r, u_tilde_min
     ))
   }
 

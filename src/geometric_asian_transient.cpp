@@ -20,29 +20,23 @@ double price_geometric_asian_transient_cpp(
 
     int n = volumes.size();
 
-    // Convert R vector to C++ vector
     std::vector<double> vol_vec(n);
     for (int i = 0; i < n; ++i) {
         vol_vec[i] = volumes[i];
     }
 
-    // Generate all 2^n paths
     std::vector<std::vector<int>> all_paths = generate_all_paths(n);
 
     double discount = std::pow(r, -n);
     double option_value = 0.0;
 
-    // Price over all paths
     for (const auto& path : all_paths) {
-        // Generate price path with transient impact
         std::vector<double> prices = generate_price_path_transient(
             S0, path, u, d, lambda_P, lambda_T, alpha, psi, vol_vec
         );
 
-        // Compute geometric mean
         double G = geometric_mean(prices);
 
-        // Compute payoff
         double payoff;
         if (option_type == "call") {
             payoff = std::max(0.0, G - K);
@@ -50,7 +44,6 @@ double price_geometric_asian_transient_cpp(
             payoff = std::max(0.0, K - G);
         }
 
-        // Compute path probability with transient impact
         double path_prob = compute_path_probability_transient(
             path, r, u, d, lambda_P, lambda_T, alpha, psi, vol_vec
         );

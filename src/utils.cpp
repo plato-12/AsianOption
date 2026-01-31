@@ -107,8 +107,12 @@ TransientAdjustedFactors compute_transient_adjusted_factors(
     double lambda_eff = lambda_P + lambda_T;
     double v_impact = std::pow(v_m, psi);
 
-    factors.u_tilde = u * std::exp(lambda_eff * v_impact + lambda_T * I_m);
-    factors.d_tilde = d * std::exp(-lambda_eff * v_impact + lambda_T * I_m);
+    // Use alpha * I_m to properly account for decay of accumulated transient impact
+    // before adding the current period's contribution
+    double decayed_I_m = alpha * I_m;
+
+    factors.u_tilde = u * std::exp(lambda_eff * v_impact + lambda_T * decayed_I_m);
+    factors.d_tilde = d * std::exp(-lambda_eff * v_impact + lambda_T * decayed_I_m);
 
     factors.p_adj = (r - factors.d_tilde) / (factors.u_tilde - factors.d_tilde);
 
@@ -148,8 +152,11 @@ std::vector<double> generate_price_path_transient(
         double v_impact = std::pow(volumes[i], psi);
         double lambda_eff = lambda_P + lambda_T;
 
-        double u_tilde = u * std::exp(lambda_eff * v_impact + lambda_T * I_m);
-        double d_tilde = d * std::exp(-lambda_eff * v_impact + lambda_T * I_m);
+        // Use alpha * I_m to properly account for decay of accumulated transient impact
+        double decayed_I_m = alpha * I_m;
+
+        double u_tilde = u * std::exp(lambda_eff * v_impact + lambda_T * decayed_I_m);
+        double d_tilde = d * std::exp(-lambda_eff * v_impact + lambda_T * decayed_I_m);
 
         if (path[i] == 1) {
             prices[i + 1] = prices[i] * u_tilde;
@@ -157,8 +164,6 @@ std::vector<double> generate_price_path_transient(
             prices[i + 1] = prices[i] * d_tilde;
         }
 
-        // Update transient accumulator: I_{m+1} = alpha * I_m + epsilon_m * v^psi
-        // Convert path[i] from {0,1} to epsilon {-1,+1}
         int epsilon = 2 * path[i] - 1;
         I_m = alpha * I_m + epsilon * v_impact;
     }
@@ -178,20 +183,17 @@ double compute_path_probability_transient(
     double I_m = 0.0;
 
     for (int i = 0; i < n; ++i) {
-        // Compute adjusted risk-neutral probability at time i
+
         TransientAdjustedFactors factors = compute_transient_adjusted_factors(
             r, u, d, lambda_P, lambda_T, alpha, psi, volumes[i], I_m
         );
 
-        // Multiply by probability of this move
         if (path[i] == 1) {
             prob *= factors.p_adj;
         } else {
             prob *= (1.0 - factors.p_adj);
         }
 
-        // Update transient accumulator
-        // Convert path[i] from {0,1} to epsilon {-1,+1}
         int epsilon = 2 * path[i] - 1;
         I_m = update_transient_accumulator(I_m, alpha, psi, volumes[i], epsilon);
     }

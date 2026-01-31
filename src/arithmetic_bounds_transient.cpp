@@ -22,18 +22,15 @@ Rcpp::List arithmetic_asian_bounds_transient_cpp(
 
     int n = volumes.size();
 
-    // Convert R vector to C++ vector
     std::vector<double> vol_vec(n);
     for (int i = 0; i < n; ++i) {
         vol_vec[i] = volumes[i];
     }
 
-    // Generate all 2^n paths
     std::vector<std::vector<int>> all_paths = generate_all_paths(n);
 
     double discount = std::pow(r, -n);
 
-    // Compute lower bound (geometric Asian price)
     double lower_bound = 0.0;
     double EQ_G = 0.0;
 
@@ -63,18 +60,21 @@ Rcpp::List arithmetic_asian_bounds_transient_cpp(
     double V0_G = lower_bound;
 
     // Compute global upper bound using worst-case spread
-    // S_max = S0 * u^n * exp(n * lambda_eff * v_max^psi + lambda_T * v_max^psi / (1-alpha))
-    // S_min = S0 * d^n * exp(-n * lambda_eff * v_max^psi - lambda_T * v_max^psi / (1-alpha))
+    // With corrected model using alpha * I_m in adjusted factors:
+    // Maximum u_tilde = u * exp(lambda_eff * v^psi + lambda_T * alpha * I_max)
+    // where I_max = v^psi / (1 - alpha)
+    // S_max = S0 * u_tilde_max^n = S0 * u^n * exp(n * lambda_eff * v^psi + n * lambda_T * alpha * v^psi / (1-alpha))
 
     double v_max = *std::max_element(vol_vec.begin(), vol_vec.end());
     double lambda_eff = lambda_P + lambda_T;
     double v_max_impact = std::pow(v_max, psi);
 
+    // Transient contribution: n * lambda_T * alpha * I_max = n * lambda_T * alpha * v^psi / (1 - alpha)
     double transient_max_accum = 0.0;
     if (alpha < 1.0) {
-        transient_max_accum = lambda_T * v_max_impact / (1.0 - alpha);
+        transient_max_accum = n * lambda_T * alpha * v_max_impact / (1.0 - alpha);
     } else {
-        transient_max_accum = lambda_T * v_max_impact * n;  // Worst case if alpha = 1
+        transient_max_accum = lambda_T * v_max_impact * n * n;  // Worst case if alpha = 1
     }
 
     double S_max_star = S0 * std::pow(u, n) * std::exp(n * lambda_eff * v_max_impact + transient_max_accum);

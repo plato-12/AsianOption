@@ -33,8 +33,9 @@
 #'   \item psi: Volume power-law (psi = 1 is linear, psi = 0.5 is square-root)
 #' }
 #'
-#' For constant volumes, the model simplifies: the risk-neutral probability
-#' becomes constant with effective impact coefficient lambda_P + lambda_T.
+#' Unlike the permanent impact model, the risk-neutral probability remains
+#' path-dependent even for constant volumes, due to the transient accumulator
+#' term in the numerator of the probability formula.
 #'
 #' @return Numeric value of the option price.
 #'

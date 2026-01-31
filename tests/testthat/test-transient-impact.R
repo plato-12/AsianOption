@@ -207,18 +207,20 @@ test_that("Different alpha values affect prices correctly", {
   volumes <- rep(1, 6)
 
   # Low decay (short memory)
+  # Low decay (short memory)
   price_low_alpha <- price_geometric_asian_transient(
     S0 = 100, K = 100, r = 1.05, u = 1.2, d = 0.8,
-    lambda_P = 0.05, lambda_T = 0.05,
+    lambda_P = 0.02, lambda_T = 0.02,
     alpha = 0.1, psi = 1,
     volumes = volumes
   )
 
-  # High decay (long memory)
+  # High decay (long memory) - use smaller lambda values to satisfy no-arbitrage
+  # With corrected model, high alpha amplifies transient effect
   price_high_alpha <- price_geometric_asian_transient(
     S0 = 100, K = 100, r = 1.05, u = 1.2, d = 0.8,
-    lambda_P = 0.05, lambda_T = 0.05,
-    alpha = 0.9, psi = 1,
+    lambda_P = 0.02, lambda_T = 0.02,
+    alpha = 0.7, psi = 1,
     volumes = volumes
   )
 
@@ -277,6 +279,7 @@ test_that("Print methods work for transient impact", {
 test_that("No-arbitrage violations are caught", {
   volumes <- rep(10, 5)  # Very large volumes
 
+  # The validation catches no-arbitrage violations in worst-case bounds
   expect_error(
     price_geometric_asian_transient(
       S0 = 100, K = 100, r = 1.05, u = 1.1, d = 0.95,
@@ -284,6 +287,6 @@ test_that("No-arbitrage violations are caught", {
       alpha = 0.9, psi = 1,
       volumes = volumes
     ),
-    "risk-neutral probability"
+    "No-arbitrage condition"
   )
 })

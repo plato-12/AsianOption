@@ -44,9 +44,11 @@ Note: $I_0 = 0$ (no history at initial time).
 The **adjusted up and down factors** at time $m$ depend on the path history:
 
 $$\begin{aligned}
-\tilde{u}_m(\omega) &= u \cdot \exp\left(\lambda_P v_m^\psi + \lambda_T \left[I_m(\omega) + v_m^\psi\right]\right) \\[8pt]
-\tilde{d}_m(\omega) &= d \cdot \exp\left(-\lambda_P v_m^\psi + \lambda_T \left[I_m(\omega) - v_m^\psi\right]\right)
+\tilde{u}_m(\omega) &= u \cdot \exp\left(\lambda_P v_m^\psi + \lambda_T \left[\alpha I_m(\omega) + v_m^\psi\right]\right) \\[8pt]
+\tilde{d}_m(\omega) &= d \cdot \exp\left(-\lambda_P v_m^\psi + \lambda_T \left[\alpha I_m(\omega) - v_m^\psi\right]\right)
 \end{aligned}$$
+
+**Note:** The factor $\alpha$ multiplying $I_m(\omega)$ accounts for the decay of accumulated transient impact by one period before adding the current move's contribution.
 
 **Key Feature**: Unlike the permanent impact model where $\tilde{u}$ and $\tilde{d}$ are constant, here they are **path-dependent** and **time-varying** due to the accumulation of transient impact.
 
@@ -66,27 +68,19 @@ The **adjusted risk-neutral probability** at time $m$ given path $\omega$ is:
 
 $$p_{m}^{\text{adj}}(\omega) = \frac{r - \tilde{d}_m(\omega)}{\tilde{u}_m(\omega) - \tilde{d}_m(\omega)}$$
 
-Substituting the adjusted factors:
+Substituting the adjusted factors (with $\lambda_{\text{eff}} = \lambda_P + \lambda_T$):
 
-$$p_{m}^{\text{adj}}(\omega) = \frac{r - d \cdot e^{-\lambda_P v_m^\psi + \lambda_T(I_m(\omega) - v_m^\psi)}}{u \cdot e^{\lambda_P v_m^\psi + \lambda_T(I_m(\omega) + v_m^\psi)} - d \cdot e^{-\lambda_P v_m^\psi + \lambda_T(I_m(\omega) - v_m^\psi)}}$$
+$$p_{m}^{\text{adj}}(\omega) = \frac{r - d \cdot e^{-\lambda_{\text{eff}} v_m^\psi + \lambda_T \alpha I_m(\omega)}}{u \cdot e^{\lambda_{\text{eff}} v_m^\psi + \lambda_T \alpha I_m(\omega)} - d \cdot e^{-\lambda_{\text{eff}} v_m^\psi + \lambda_T \alpha I_m(\omega)}}$$
 
-Factoring out $e^{\lambda_T I_m(\omega)}$:
+The denominator can be factored as $e^{\lambda_T \alpha I_m(\omega)} \cdot (u \cdot e^{\lambda_{\text{eff}} v_m^\psi} - d \cdot e^{-\lambda_{\text{eff}} v_m^\psi})$.
 
-$$p_{m}^{\text{adj}}(\omega) = \frac{r - d \cdot e^{-\lambda_P v_m^\psi - \lambda_T v_m^\psi + \lambda_T I_m(\omega)}}{u \cdot e^{\lambda_P v_m^\psi + \lambda_T v_m^\psi + \lambda_T I_m(\omega)} - d \cdot e^{-\lambda_P v_m^\psi - \lambda_T v_m^\psi + \lambda_T I_m(\omega)}}$$
+Dividing numerator and denominator by $e^{\lambda_T \alpha I_m(\omega)}$:
 
-Let $\lambda_{\text{eff}} = \lambda_P + \lambda_T$ (effective impact on current period):
+$$\boxed{p_{m}^{\text{adj}}(\omega) = \frac{r \cdot e^{-\lambda_T \alpha I_m(\omega)} - d \cdot e^{-\lambda_{\text{eff}} v_m^\psi}}{u \cdot e^{\lambda_{\text{eff}} v_m^\psi} - d \cdot e^{-\lambda_{\text{eff}} v_m^\psi}}}$$
 
-$$p_{m}^{\text{adj}}(\omega) = \frac{r - d \cdot e^{-\lambda_{\text{eff}} v_m^\psi} \cdot e^{\lambda_T I_m(\omega)}}{u \cdot e^{\lambda_{\text{eff}} v_m^\psi} \cdot e^{\lambda_T I_m(\omega)} - d \cdot e^{-\lambda_{\text{eff}} v_m^\psi} \cdot e^{\lambda_T I_m(\omega)}}$$
+**Important Observation**: The risk-neutral probability **remains path-dependent** through the term $e^{-\lambda_T \alpha I_m(\omega)}$ in the numerator. Even when volumes are constant ($v_m = v$ for all $m$), the transient accumulator $I_m(\omega)$ varies by path, so the probability cannot be simplified to a path-independent constant.
 
-Dividing numerator and denominator by $e^{\lambda_T I_m(\omega)}$:
-
-$$\boxed{p_{m}^{\text{adj}}(\omega) = \frac{r - d \cdot e^{-\lambda_{\text{eff}} v_m^\psi}}{u \cdot e^{\lambda_{\text{eff}} v_m^\psi} - d \cdot e^{-\lambda_{\text{eff}} v_m^\psi}}}$$
-
-**Important Observation**: When volumes are constant ($v_m = v$ for all $m$), the risk-neutral probability simplifies to a constant independent of the path:
-
-$$p^{\text{adj}} = \frac{r - d \cdot e^{-(\lambda_P + \lambda_T) v^\psi}}{u \cdot e^{(\lambda_P + \lambda_T) v^\psi} - d \cdot e^{-(\lambda_P + \lambda_T) v^\psi}}$$
-
-This shows that **for constant volumes, transient impact affects pricing only through the effective total impact** $\lambda_P + \lambda_T$.
+This is a key distinction from the permanent impact model: **transient impact introduces genuine path dependence in the risk-neutral measure**, not just in the price dynamics.
 
 ### 3.2 No-Arbitrage Conditions
 
@@ -98,7 +92,9 @@ $$\tilde{d}_m(\omega) < r < \tilde{u}_m(\omega) \quad \forall m, \omega$$
 
 Explicitly:
 
-$$d \cdot \exp\left(-\lambda_P v_m^\psi + \lambda_T(I_m(\omega) - v_m^\psi)\right) < r < u \cdot \exp\left(\lambda_P v_m^\psi + \lambda_T(I_m(\omega) + v_m^\psi)\right)$$
+$$d \cdot \exp\left(-\lambda_{\text{eff}} v_m^\psi + \lambda_T \alpha I_m(\omega)\right) < r < u \cdot \exp\left(\lambda_{\text{eff}} v_m^\psi + \lambda_T \alpha I_m(\omega)\right)$$
+
+where $\lambda_{\text{eff}} = \lambda_P + \lambda_T$.
 
 **Minimum Volume Requirements** (assuming worst-case transient accumulation):
 
@@ -108,9 +104,68 @@ $$I_m^{\min} = -\frac{v_{\max}^\psi}{1-\alpha} \quad \text{(minimum possible acc
 
 Then volumes must satisfy:
 
-$$v_m^\psi \geq \frac{1}{\lambda_P + \lambda_T} \ln\left(\frac{r}{u}\right) - \frac{\lambda_T}{\lambda_P + \lambda_T} I_m^{\max}$$
+$$v_m^\psi \geq \frac{1}{\lambda_P + \lambda_T} \ln\left(\frac{r}{u}\right) + \frac{\lambda_T \alpha}{\lambda_P + \lambda_T} I_m^{\max}$$
 
-$$v_m^\psi \geq -\frac{1}{\lambda_P + \lambda_T} \ln\left(\frac{r}{d}\right) + \frac{\lambda_T}{\lambda_P + \lambda_T} I_m^{\min}$$
+$$v_m^\psi \geq -\frac{1}{\lambda_P + \lambda_T} \ln\left(\frac{r}{d}\right) + \frac{\lambda_T \alpha}{\lambda_P + \lambda_T} I_m^{\max}$$
+
+#### Derivation of Minimum Volume Requirements
+
+**Step 1: Worst-Case Transient Accumulation**
+
+The transient accumulator evolves as:
+$$I_{m+1} = \alpha \cdot I_m + \epsilon_m v_m^\psi$$
+
+where $\epsilon_m \in \{-1, +1\}$.
+
+**Maximum possible accumulator** (consecutive up moves with maximum volume):
+$$I_m^{\max} = v_{\max}^\psi \cdot (1 + \alpha + \alpha^2 + \cdots + \alpha^{m-1})$$
+
+This is a geometric series summing to:
+$$I_m^{\max} = v_{\max}^\psi \cdot \frac{1 - \alpha^m}{1 - \alpha}$$
+
+As $m \to \infty$:
+$$I_m^{\max} = \frac{v_{\max}^\psi}{1-\alpha}$$
+
+**Minimum possible accumulator** (consecutive down moves):
+$$I_m^{\min} = -\frac{v_{\max}^\psi}{1-\alpha}$$
+
+**Step 2: Upper No-Arbitrage Bound ($r < \tilde{u}_m$)**
+
+From the upper adjusted factor:
+$$\tilde{u}_m(\omega) = u \cdot \exp\left(\lambda_{\text{eff}} v_m^\psi + \lambda_T \alpha I_m(\omega)\right)$$
+
+The **worst case** for satisfying $r < \tilde{u}_m$ is when $\alpha I_m$ is at its **minimum** (most negative), which occurs when $I_m = I_m^{\min}$:
+
+$$r < u \cdot \exp\left(\lambda_{\text{eff}} v_m^\psi + \lambda_T \alpha I_m^{\min}\right)$$
+
+Taking natural logarithm:
+$$\ln\left(\frac{r}{u}\right) < \lambda_{\text{eff}} v_m^\psi + \lambda_T \alpha I_m^{\min}$$
+
+Solving for $v_m^\psi$:
+$$v_m^\psi > \frac{1}{\lambda_{\text{eff}}} \ln\left(\frac{r}{u}\right) - \frac{\lambda_T \alpha}{\lambda_{\text{eff}}} I_m^{\min}$$
+
+Therefore:
+$$v_m^\psi \geq \frac{1}{\lambda_P + \lambda_T} \ln\left(\frac{r}{u}\right) + \frac{\lambda_T \alpha}{\lambda_P + \lambda_T} \cdot \frac{v_{\max}^\psi}{1-\alpha}$$
+
+**Step 3: Lower No-Arbitrage Bound ($\tilde{d}_m < r$)**
+
+From the lower adjusted factor:
+$$\tilde{d}_m(\omega) = d \cdot \exp\left(-\lambda_{\text{eff}} v_m^\psi + \lambda_T \alpha I_m(\omega)\right)$$
+
+The **worst case** for satisfying $\tilde{d}_m < r$ is when $\alpha I_m$ is at its **maximum**, which occurs when $I_m = I_m^{\max}$:
+
+$$d \cdot \exp\left(-\lambda_{\text{eff}} v_m^\psi + \lambda_T \alpha I_m^{\max}\right) < r$$
+
+Taking natural logarithm:
+$$-\lambda_{\text{eff}} v_m^\psi + \lambda_T \alpha I_m^{\max} < \ln\left(\frac{r}{d}\right)$$
+
+Solving for $v_m^\psi$:
+$$v_m^\psi > -\frac{1}{\lambda_{\text{eff}}} \ln\left(\frac{r}{d}\right) + \frac{\lambda_T \alpha}{\lambda_{\text{eff}}} I_m^{\max}$$
+
+Therefore:
+$$v_m^\psi \geq -\frac{1}{\lambda_P + \lambda_T} \ln\left(\frac{r}{d}\right) + \frac{\lambda_T \alpha}{\lambda_P + \lambda_T} \cdot \frac{v_{\max}^\psi}{1-\alpha}$$
+
+**Summary:** Volumes must satisfy **both** constraints simultaneously to ensure no arbitrage opportunities exist even under the most extreme path-dependent accumulation of transient impact.
 
 ## 4. Geometric Asian Option Pricing
 
@@ -210,11 +265,17 @@ $$\boxed{V_0^A \leq V_0^G + \frac{1}{r^n} \sum_{\omega} P(\omega) \cdot G_n(\ome
 
 ### 5.3 Global Upper Bound
 
-To obtain a tractable bound without path enumeration, bound the extremal prices:
+To obtain a tractable bound without path enumeration, bound the extremal prices using the maximum adjusted factors. With the corrected model using $\alpha I_m$:
 
-$$S_{\max}(\omega) \leq S_0 \cdot u^n \cdot \exp\left[n \lambda_P v_{\max}^\psi + \lambda_T \frac{v_{\max}^\psi}{1-\alpha}\right] =: S_{\max}^*$$
+$$\tilde{u}_{\max} = u \cdot \exp\left[\lambda_{\text{eff}} v_{\max}^\psi + \frac{\lambda_T \alpha v_{\max}^\psi}{1-\alpha}\right]$$
 
-$$S_{\min}(\omega) \geq S_0 \cdot d^n \cdot \exp\left[-n \lambda_P v_{\max}^\psi - \lambda_T \frac{v_{\max}^\psi}{1-\alpha}\right] =: S_{\min}^*$$
+$$\tilde{d}_{\min} = d \cdot \exp\left[-\lambda_{\text{eff}} v_{\max}^\psi - \frac{\lambda_T \alpha v_{\max}^\psi}{1-\alpha}\right]$$
+
+Therefore:
+
+$$S_{\max}(\omega) \leq S_0 \cdot \tilde{u}_{\max}^n = S_0 \cdot u^n \cdot \exp\left[n \lambda_{\text{eff}} v_{\max}^\psi + \frac{n \lambda_T \alpha v_{\max}^\psi}{1-\alpha}\right] =: S_{\max}^*$$
+
+$$S_{\min}(\omega) \geq S_0 \cdot \tilde{d}_{\min}^n = S_0 \cdot d^n \cdot \exp\left[-n \lambda_{\text{eff}} v_{\max}^\psi - \frac{n \lambda_T \alpha v_{\max}^\psi}{1-\alpha}\right] =: S_{\min}^*$$
 
 Define the **global multiplier**:
 
@@ -233,11 +294,13 @@ $$\boxed{V_0^G \leq V_0^A \leq V_0^G + \frac{\rho^* - 1}{r^n} \mathbb{E}^Q[G_n]}
 ### 6.1 Constant Volumes ($v_m = v$ for all $m$)
 
 When volumes are constant:
-- Risk-neutral probability becomes path-independent: $p_m^{\text{adj}}(\omega) = p^{\text{adj}}$ for all $m, \omega$
-- Effective impact coefficient: $\lambda_{\text{eff}} = \lambda_P + \lambda_T$
-- Model reduces to permanent impact model with $\lambda = \lambda_{\text{eff}}$
+- Risk-neutral probability **remains path-dependent** through the transient accumulator $I_m(\omega)$
+- The denominator simplifies with effective impact coefficient: $\lambda_{\text{eff}} = \lambda_P + \lambda_T$
+- The model does **not** reduce to the permanent impact model due to path dependence in the numerator
 
-$$p^{\text{adj}} = \frac{r - d \cdot e^{-\lambda_{\text{eff}} v^\psi}}{u \cdot e^{\lambda_{\text{eff}} v^\psi} - d \cdot e^{-\lambda_{\text{eff}} v^\psi}}$$
+$$p_m^{\text{adj}}(\omega) = \frac{r \cdot e^{-\lambda_T \alpha I_m(\omega)} - d \cdot e^{-\lambda_{\text{eff}} v^\psi}}{u \cdot e^{\lambda_{\text{eff}} v^\psi} - d \cdot e^{-\lambda_{\text{eff}} v^\psi}}$$
+
+where $I_m(\omega) = v^\psi \sum_{k=0}^{m-1} \alpha^{m-1-k} \epsilon_k$ depends on the path history.
 
 ### 6.2 No Transient Impact ($\lambda_T = 0$ or $\alpha = 0$)
 
@@ -251,15 +314,19 @@ $$p_m^{\text{adj}} = \frac{r - d \cdot e^{-\lambda_P v_m^\psi}}{u \cdot e^{\lamb
 
 The standard empirical specification with linear volume:
 
-$$\tilde{u}_m(\omega) = u \cdot \exp\left(\lambda_P v_m + \lambda_T (I_m(\omega) + v_m)\right)$$
+$$\tilde{u}_m(\omega) = u \cdot \exp\left(\lambda_{\text{eff}} v_m + \lambda_T \alpha I_m(\omega)\right)$$
 
-$$\tilde{d}_m(\omega) = d \cdot \exp\left(-\lambda_P v_m + \lambda_T (I_m(\omega) - v_m)\right)$$
+$$\tilde{d}_m(\omega) = d \cdot \exp\left(-\lambda_{\text{eff}} v_m + \lambda_T \alpha I_m(\omega)\right)$$
+
+where $\lambda_{\text{eff}} = \lambda_P + \lambda_T$.
 
 ### 6.4 Square-Root Impact ($\psi = 0.5$)
 
 Common in limit order book models:
 
-$$\tilde{u}_m(\omega) = u \cdot \exp\left(\lambda_P \sqrt{v_m} + \lambda_T (I_m(\omega) + \sqrt{v_m})\right)$$
+$$\tilde{u}_m(\omega) = u \cdot \exp\left(\lambda_{\text{eff}} \sqrt{v_m} + \lambda_T \alpha I_m(\omega)\right)$$
+
+$$\tilde{d}_m(\omega) = d \cdot \exp\left(-\lambda_{\text{eff}} \sqrt{v_m} + \lambda_T \alpha I_m(\omega)\right)$$
 
 ## 7. Numerical Implementation
 
@@ -306,7 +373,7 @@ For large $n > 20$:
 | Price sensitivity to $\alpha$ | N/A | High for $\alpha \to 1$ |
 | Long-term impact | Permanent | Partially mean-reverting |
 
-**Key Insight:** For constant volumes, transient impact acts as an **additive enhancement** to permanent impact, with effective coefficient $\lambda_{\text{eff}} = \lambda_P + \lambda_T$.
+**Key Insight:** Unlike permanent impact, transient impact introduces **genuine path dependence** in the risk-neutral probability through the accumulator $I_m(\omega)$. Even with constant volumes, the probability varies along each path, preventing the tree from recombining and requiring full path enumeration.
 
 ## 9. Empirical Considerations
 
@@ -335,7 +402,11 @@ $$V_0^G = \frac{1}{r^n} \sum_{\omega \in \{+1,-1\}^n} P(\omega) \cdot \max(G_n(\
 
 where $P(\omega) = \prod_{m=0}^{n-1} p_m^{\text{adj}}(\omega_{\leq m})^{\mathbb{1}_{\epsilon_m=+1}} (1-p_m^{\text{adj}}(\omega_{\leq m}))^{\mathbb{1}_{\epsilon_m=-1}}$
 
-and the risk-neutral probability is path-dependent via the transient accumulator $I_m(\omega) = \sum_{k=0}^{m-1} \alpha^{m-1-k} \epsilon_k v_k^\psi$.
+and the risk-neutral probability is path-dependent:
+
+$$p_{m}^{\text{adj}}(\omega) = \frac{r \cdot e^{-\lambda_T \alpha I_m(\omega)} - d \cdot e^{-(\lambda_P + \lambda_T) v_m^\psi}}{u \cdot e^{(\lambda_P + \lambda_T) v_m^\psi} - d \cdot e^{-(\lambda_P + \lambda_T) v_m^\psi}}$$
+
+with transient accumulator $I_m(\omega) = \sum_{k=0}^{m-1} \alpha^{m-1-k} \epsilon_k v_k^\psi$.
 
 **Theorem 2 (Bounds for Arithmetic Asian Price)**
 
