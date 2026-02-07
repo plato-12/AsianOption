@@ -190,3 +190,67 @@ validate_transient_inputs <- function(S0, K, r, u, d,
 
   invisible(NULL)
 }
+
+
+#' Validate Input Parameters for HJB Bellman Pricing
+#'
+#' @param S0 Initial stock price
+#' @param K Strike price
+#' @param T Maturity (years)
+#' @param N Number of time steps
+#' @param sigma Volatility
+#' @param r_cont Continuous risk-free rate
+#' @param kappa Mean-reversion rate for transient impact
+#' @param lambda_bar_T Transient impact coefficient (continuous scale)
+#' @param lambda_bar_P Permanent impact coefficient (continuous scale)
+#' @param k_A Buy-side cost coefficient
+#' @param k_B Sell-side cost coefficient
+#' @param psi_cost Cost power-law exponent
+#' @param eta Noise-trader intensity (scalar or vector of length N)
+#' @param p Binomial probability
+#' @param I0 Initial transient state
+#'
+#' @return NULL (throws error if validation fails)
+#' @keywords internal
+validate_hjb_inputs <- function(S0, K, T, N, sigma, r_cont,
+                                 kappa, lambda_bar_T, lambda_bar_P,
+                                 k_A, k_B, psi_cost, eta, p, I0) {
+
+  if (S0 <= 0) stop("S0 must be positive")
+  if (K <= 0) stop("K must be positive")
+  if (T <= 0) stop("T (maturity) must be positive")
+
+  if (!is.numeric(N) || length(N) != 1 || N != as.integer(N) || N <= 0) {
+    stop("N must be a positive integer")
+  }
+
+  if (sigma <= 0) stop("sigma must be positive")
+  if (kappa < 0) stop("kappa must be non-negative")
+  if (lambda_bar_T < 0) stop("lambda_bar_T must be non-negative")
+  if (lambda_bar_P < 0) stop("lambda_bar_P must be non-negative")
+  if (k_A < 0) stop("k_A must be non-negative")
+  if (k_B < 0) stop("k_B must be non-negative")
+
+  if (psi_cost <= 0 || psi_cost > 1) {
+    stop("psi_cost must be in (0, 1]")
+  }
+
+  if (!is.numeric(eta) || any(eta < 0)) {
+    stop("eta must be a non-negative numeric value or vector")
+  }
+
+  if (p <= 0 || p >= 1) {
+    stop("p (binomial probability) must be in (0, 1)")
+  }
+
+  dt <- T / N
+  alpha_m <- 1.0 - kappa * dt
+  if (alpha_m < 0) {
+    warning(sprintf(
+      "alpha_m = 1 - kappa*dt = %.4f < 0. kappa may be too large for N = %d. Consider increasing N.",
+      alpha_m, N
+    ))
+  }
+
+  invisible(NULL)
+}
