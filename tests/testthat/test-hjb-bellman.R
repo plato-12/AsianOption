@@ -86,8 +86,9 @@ test_that("arithmetic HJB returns bid, ask, and volumes", {
   expect_true(is.numeric(result$bid_price))
   expect_true(result$ask_price >= 0)
   expect_true(result$bid_price >= 0)
-  # In endogenous model, spread can be negative (manipulation surplus)
+  # Spread is always non-negative (bid <= ask enforced by convention)
   expect_true(is.numeric(result$spread))
+  expect_true(result$ask_price >= result$bid_price)
 
   # Optimal volumes for all N periods
   expect_length(result$optimal_nu, 10)
@@ -190,10 +191,9 @@ test_that("increasing cost increases spread", {
     nu_min = -3, nu_max = 3, n_controls = 21
   )
 
-  # Higher cost => less manipulation => spread closer to zero
-  # (spread is negative in endogenous model; higher cost makes it less negative)
+  # Higher cost => less manipulation => spread smaller (closer to zero)
   expect_true(
-    high_cost$spread > low_cost$spread - 0.01
+    high_cost$spread <= low_cost$spread + 0.01
   )
 })
 

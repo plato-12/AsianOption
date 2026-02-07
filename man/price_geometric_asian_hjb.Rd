@@ -2,7 +2,7 @@
 % Please edit documentation in R/hjb_bellman.R
 \name{price_geometric_asian_hjb}
 \alias{price_geometric_asian_hjb}
-\title{Price Geometric Asian Option via HJB Bellman Scheme}
+\title{Price Geometric Asian Option via HJB Bellman Scheme (Endogenous Impact)}
 \usage{
 price_geometric_asian_hjb(
   S0,
@@ -26,107 +26,61 @@ price_geometric_asian_hjb(
   n_controls = 31,
   n_logS = NULL,
   n_I = 51,
-  n_Z = 51,
+  n_Y = 51,
+  n_Z = NULL,
   option_type = "call",
   validate = TRUE
 )
 }
 \arguments{
-\item{S0}{Initial stock price (must be positive)}
+\item{S0}{Initial stock price (positive).}
 
-\item{K}{Strike price (must be positive)}
+\item{K}{Strike price (positive).}
 
-\item{T}{Maturity in years (must be positive)}
+\item{T}{Time to maturity (positive).}
 
-\item{N}{Number of time steps (positive integer)}
+\item{N}{Number of time steps (positive integer).}
 
-\item{sigma}{Volatility (annualized, must be positive)}
+\item{sigma}{Volatility (positive).}
 
-\item{r_cont}{Continuous risk-free rate (annualized)}
+\item{r_cont}{Continuous risk-free rate.}
 
-\item{kappa}{Mean-reversion rate for transient impact state
-(non-negative)}
+\item{kappa}{Mean reversion rate for impact (non-negative).}
 
-\item{lambda_bar_T}{Transient impact coefficient at continuous
-scale (non-negative)}
+\item{lambda_bar_T}{Transient impact coefficient (non-negative).}
 
-\item{lambda_bar_P}{Permanent impact coefficient at continuous
-scale (non-negative)}
+\item{lambda_bar_P}{Permanent impact coefficient (non-negative).}
 
-\item{k_A}{Buy-side cost coefficient (non-negative)}
+\item{k_A, k_B}{Cost coefficients (non-negative).}
 
-\item{k_B}{Sell-side cost coefficient (non-negative)}
+\item{psi_cost}{Cost exponent (in (0, 2]).}
 
-\item{psi_cost}{Power-law exponent for the cost function,
-in (0, 1]}
+\item{eta}{Noise trader intensity (scalar or length-N vector).}
 
-\item{eta}{Noise-trader intensity. Scalar (constant) or vector
-of length N. Must be non-negative. Default is 1.0.}
+\item{p}{Probability of up move (in (0, 1)).}
 
-\item{p}{Binomial probability (default 0.5). Must be in (0, 1).}
+\item{I0}{Initial impact state.}
 
-\item{I0}{Initial transient impact state (default 0)}
+\item{control_set}{Optional numeric vector of controls; otherwise built from \code{nu_min}, \code{nu_max}, \code{n_controls}.}
 
-\item{control_set}{Numeric vector of candidate control values.
-If NULL, a uniform grid from \code{nu_min} to \code{nu_max}
-is constructed.}
+\item{nu_min, nu_max, n_controls}{Control grid (used if \code{control_set} is NULL).}
 
-\item{nu_min}{Minimum control value (used if \code{control_set}
-is NULL)}
+\item{n_logS, n_I}{Grid sizes for log-price and impact state.}
 
-\item{nu_max}{Maximum control value (used if \code{control_set}
-is NULL)}
+\item{n_Y}{Grid size for running state (integral of log S). Ignored if \code{n_Z} is provided.}
 
-\item{n_controls}{Number of control grid points (used if
-\code{control_set} is NULL)}
+\item{n_Z}{Grid size for running state (alias for geometric case). If provided, used instead of \code{n_Y}.}
 
-\item{n_logS}{Grid size for log-S dimension.
-Default is \code{2*N + 1}.}
+\item{option_type}{\code{"call"} or \code{"put"}.}
 
-\item{n_I}{Grid size for I (transient state) dimension.
-Default is 51.}
-
-\item{n_Z}{Grid size for Z (running log-integral) dimension.
-Default is 51.}
-
-\item{option_type}{Character; either \code{"call"} (default) or
-\code{"put"}.}
-
-\item{validate}{Logical; if TRUE, performs input validation.}
+\item{validate}{Whether to validate inputs.}
 }
 \value{
-A list with S3 class \code{"hjb_asian"} containing:
-\describe{
-  \item{ask_price}{Seller's value (ask) at t=0}
-  \item{bid_price}{Buyer's value (bid) at t=0}
-  \item{spread}{Ask minus bid}
-  \item{optimal_nu}{Seller's optimal trading rates for all N
-    periods}
-  \item{optimal_volumes}{Seller's optimal volumes (nu * dt)}
-  \item{optimal_nu_buyer}{Buyer's optimal trading rates}
-  \item{optimal_volumes_buyer}{Buyer's optimal volumes}
-  \item{option_type}{Option type used}
-  \item{asian_type}{Type of Asian option ("geometric")}
-  \item{params}{List of input parameters}
-  \item{grid_sizes}{List of grid dimensions used}
-}
+List with S3 class \code{"hjb_asian"} (same structure as arithmetic), with \code{asian_type = "geometric"}.
 }
 \description{
-Solves the endogenous (controlled) pricing problem for geometric
-Asian options under transient price impact. Returns bid price,
-ask price, and optimal trading volumes for all time periods.
-}
-\examples{
-result <- price_geometric_asian_hjb(
-  S0 = 100, K = 100, T = 1, N = 10,
-  sigma = 0.2, r_cont = 0.05,
-  kappa = 1, lambda_bar_T = 0.1, lambda_bar_P = 0.05,
-  k_A = 0.01, k_B = 0.01, psi_cost = 1,
-  n_I = 21, n_Z = 21
-)
-print(result)
-
-}
-\seealso{
-\code{\link{price_arithmetic_asian_hjb}}
+Computes bid and ask prices for a geometric Asian option under
+transient price impact using a Bellman (HJB) scheme. Same interface as
+\code{\link{price_arithmetic_asian_hjb}}; the running average is geometric
+(average of log-price, then exp).
 }

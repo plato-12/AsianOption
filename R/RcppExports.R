@@ -33,12 +33,20 @@ price_geometric_asian_transient_cpp <- function(S0, K, r, u, d, lambda_P, lambda
     .Call(`_AsianOption_price_geometric_asian_transient_cpp`, S0, K, r, u, d, lambda_P, lambda_T, alpha, psi, volumes, option_type)
 }
 
-hjb_arithmetic_asian_cpp <- function(S0, K, T, N, sigma, r_cont, kappa, lambda_bar_T, lambda_bar_P, k_A, k_B, psi_cost, eta_vec, p, I0, control_set, n_logS, n_I, n_Y, problem_type) {
-    .Call(`_AsianOption_hjb_arithmetic_asian_cpp`, S0, K, T, N, sigma, r_cont, kappa, lambda_bar_T, lambda_bar_P, k_A, k_B, psi_cost, eta_vec, p, I0, control_set, n_logS, n_I, n_Y, problem_type)
+hjb_arithmetic_value_cpp <- function(S0, K, T, N, sigma, r_cont, kappa, lambda_bar_T, lambda_bar_P, k_A, k_B, psi_cost, eta_vec, p, I0, control_set, n_logS, n_I, n_Y, payoff_sign, store_policy = FALSE) {
+    .Call(`_AsianOption_hjb_arithmetic_value_cpp`, S0, K, T, N, sigma, r_cont, kappa, lambda_bar_T, lambda_bar_P, k_A, k_B, psi_cost, eta_vec, p, I0, control_set, n_logS, n_I, n_Y, payoff_sign, store_policy)
 }
 
-hjb_geometric_asian_cpp <- function(S0, K, T, N, sigma, r_cont, kappa, lambda_bar_T, lambda_bar_P, k_A, k_B, psi_cost, eta_vec, p, I0, control_set, n_logS, n_I, n_Y, problem_type) {
-    .Call(`_AsianOption_hjb_geometric_asian_cpp`, S0, K, T, N, sigma, r_cont, kappa, lambda_bar_T, lambda_bar_P, k_A, k_B, psi_cost, eta_vec, p, I0, control_set, n_logS, n_I, n_Y, problem_type)
+hjb_geometric_value_cpp <- function(S0, K, T, N, sigma, r_cont, kappa, lambda_bar_T, lambda_bar_P, k_A, k_B, psi_cost, eta_vec, p, I0, control_set, n_logS, n_I, n_Y, payoff_sign, store_policy = FALSE) {
+    .Call(`_AsianOption_hjb_geometric_value_cpp`, S0, K, T, N, sigma, r_cont, kappa, lambda_bar_T, lambda_bar_P, k_A, k_B, psi_cost, eta_vec, p, I0, control_set, n_logS, n_I, n_Y, payoff_sign, store_policy)
+}
+
+hjb_arithmetic_quotes_cpp <- function(S0, K, T, N, sigma, r_cont, kappa, lambda_bar_T, lambda_bar_P, k_A, k_B, psi_cost, eta_vec, p, I0, control_set, n_logS, n_I, n_Y) {
+    .Call(`_AsianOption_hjb_arithmetic_quotes_cpp`, S0, K, T, N, sigma, r_cont, kappa, lambda_bar_T, lambda_bar_P, k_A, k_B, psi_cost, eta_vec, p, I0, control_set, n_logS, n_I, n_Y)
+}
+
+hjb_geometric_quotes_cpp <- function(S0, K, T, N, sigma, r_cont, kappa, lambda_bar_T, lambda_bar_P, k_A, k_B, psi_cost, eta_vec, p, I0, control_set, n_logS, n_I, n_Y) {
+    .Call(`_AsianOption_hjb_geometric_quotes_cpp`, S0, K, T, N, sigma, r_cont, kappa, lambda_bar_T, lambda_bar_P, k_A, k_B, psi_cost, eta_vec, p, I0, control_set, n_logS, n_I, n_Y)
 }
 
 price_kemna_vorst_arithmetic_cpp <- function(S0, K, r, sigma, T0, T_mat, n, M, option_type = "call", use_control_variate = TRUE, seed = 0L) {
