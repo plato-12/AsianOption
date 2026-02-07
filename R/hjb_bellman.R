@@ -15,6 +15,10 @@
 #'   \item{bid_price}{Bid (buyer’s indifference) price at t=0}
 #'   \item{mid_price}{Mid price}
 #'   \item{spread}{Ask minus bid}
+#'   \item{optimal_nu}{Optimal trading rate (seller/short) per period, length N}
+#'   \item{optimal_volumes}{Seller volumes per period (optimal_nu * dt)}
+#'   \item{optimal_nu_buyer}{Optimal trading rate (buyer/long) per period}
+#'   \item{optimal_volumes_buyer}{Buyer volumes per period}
 #'   \item{asian_type}{Type of Asian option ("arithmetic")}
 #'   \item{option_type}{Option type}
 #'   \item{params}{List of input parameters}
@@ -58,7 +62,7 @@ price_arithmetic_asian_hjb <- function(
     control_set <- seq(nu_min, nu_max, length.out = n_controls)
   }
 
-  quotes <- hjb_arithmetic_quotes_cpp(
+  quotes <- hjb_arithmetic_quotes_with_policy_cpp(
     S0, K, T, as.integer(N),
     sigma, r_cont,
     kappa, lambda_bar_T, lambda_bar_P,
@@ -72,6 +76,7 @@ price_arithmetic_asian_hjb <- function(
     warning("Put pricing not yet implemented; returning call prices.")
   }
 
+  dt <- T / N
   result <- list(
     ask_price = quotes$ask,
     bid_price = quotes$bid,
@@ -79,6 +84,10 @@ price_arithmetic_asian_hjb <- function(
     spread = quotes$ask - quotes$bid,
     seller_indiff = quotes$seller_indiff,
     buyer_indiff = quotes$buyer_indiff,
+    optimal_nu = quotes$optimal_nu_seller,
+    optimal_volumes = quotes$optimal_nu_seller * dt,
+    optimal_nu_buyer = quotes$optimal_nu_buyer,
+    optimal_volumes_buyer = quotes$optimal_nu_buyer * dt,
     option_type = option_type,
     asian_type = "arithmetic",
     params = list(
@@ -172,7 +181,7 @@ price_geometric_asian_hjb <- function(
     control_set <- seq(nu_min, nu_max, length.out = n_controls)
   }
 
-  quotes <- hjb_geometric_quotes_cpp(
+  quotes <- hjb_geometric_quotes_with_policy_cpp(
     S0, K, T, as.integer(N),
     sigma, r_cont,
     kappa, lambda_bar_T, lambda_bar_P,
@@ -186,6 +195,7 @@ price_geometric_asian_hjb <- function(
     warning("Put pricing not yet implemented; returning call prices.")
   }
 
+  dt <- T / N
   result <- list(
     ask_price = quotes$ask,
     bid_price = quotes$bid,
@@ -193,6 +203,10 @@ price_geometric_asian_hjb <- function(
     spread = quotes$ask - quotes$bid,
     seller_indiff = quotes$seller_indiff,
     buyer_indiff = quotes$buyer_indiff,
+    optimal_nu = quotes$optimal_nu_seller,
+    optimal_volumes = quotes$optimal_nu_seller * dt,
+    optimal_nu_buyer = quotes$optimal_nu_buyer,
+    optimal_volumes_buyer = quotes$optimal_nu_buyer * dt,
     option_type = option_type,
     asian_type = "geometric",
     params = list(

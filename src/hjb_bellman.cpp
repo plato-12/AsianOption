@@ -66,6 +66,42 @@ static double trilinear_interp(
   return c0 * (1.0 - wx) + c1 * wx;
 }
 
+// Trilinear interpolation on 3D slice (pointer to first element)
+static double trilinear_interp_slice(
+    const double* V,
+    const std::vector<double>& grid_x, int n_x,
+    const std::vector<double>& grid_y, int n_y,
+    const std::vector<double>& grid_z, int n_z,
+    double x, double y, double z
+) {
+  double wx, wy, wz;
+  int ix = find_bracket(grid_x, n_x, x, wx);
+  int iy = find_bracket(grid_y, n_y, y, wy);
+  int iz = find_bracket(grid_z, n_z, z, wz);
+
+  int stride_x = n_y * n_z;
+  int stride_y = n_z;
+
+  double c000 = V[ix * stride_x + iy * stride_y + iz];
+  double c001 = V[ix * stride_x + iy * stride_y + (iz + 1)];
+  double c010 = V[ix * stride_x + (iy + 1) * stride_y + iz];
+  double c011 = V[ix * stride_x + (iy + 1) * stride_y + (iz + 1)];
+  double c100 = V[(ix + 1) * stride_x + iy * stride_y + iz];
+  double c101 = V[(ix + 1) * stride_x + iy * stride_y + (iz + 1)];
+  double c110 = V[(ix + 1) * stride_x + (iy + 1) * stride_y + iz];
+  double c111 = V[(ix + 1) * stride_x + (iy + 1) * stride_y + (iz + 1)];
+
+  double c00 = c000 * (1.0 - wz) + c001 * wz;
+  double c01 = c010 * (1.0 - wz) + c011 * wz;
+  double c10 = c100 * (1.0 - wz) + c101 * wz;
+  double c11 = c110 * (1.0 - wz) + c111 * wz;
+
+  double c0 = c00 * (1.0 - wy) + c01 * wy;
+  double c1 = c10 * (1.0 - wy) + c11 * wy;
+
+  return c0 * (1.0 - wx) + c1 * wx;
+}
+
 // Build uniform grid
 static std::vector<double> make_uniform_grid(double lo, double hi, int n) {
   std::vector<double> grid(n);
@@ -73,6 +109,65 @@ static std::vector<double> make_uniform_grid(double lo, double hi, int n) {
   double dx = (hi - lo) / (n - 1);
   for (int i = 0; i < n; i++) grid[i] = lo + i * dx;
   return grid;
+}
+
+// Interpolate policy (optimal nu) at period m and state (log_s, i_val, y_val)
+static double policy_interp_at_m(
+    const std::vector<double>& policy_full,
+    int m, int grid_size,
+    double log_s, double i_val, double y_val,
+    const std::vector<double>& logS_grid, int n_logS,
+    const std::vector<double>& I_grid, int n_I,
+    const std::vector<double>& Y_grid, int n_Y
+) {
+  const double* slice = policy_full.data() + static_cast<size_t>(m) * grid_size;
+  return trilinear_interp_slice(
+    slice, logS_grid, n_logS, I_grid, n_I, Y_grid, n_Y,
+    log_s, i_val, y_val
+  );
+}
+
+// Forward pass: expected-state path from (log_S0, I0, 0), returns nu[0..N-1]
+static std::vector<double> forward_pass_policy(
+    const std::vector<double>& policy_full,
+    double S0, double I0, double T, int N, int asian_type,
+    double kappa, double lambda_bar_T, double lambda_bar_P, double r_cont,
+    const std::vector<double>& logS_grid, int n_logS,
+    const std::vector<double>& I_grid, int n_I,
+    const std::vector<double>& Y_grid, int n_Y
+) {
+  int grid_size = n_logS * n_I * n_Y;
+  double dt = T / N;
+  double alpha_m = 1.0 - kappa * dt;
+
+  std::vector<double> nu_path(static_cast<size_t>(N), 0.0);
+  double log_s = std::log(S0);
+  double i_val = I0;
+  double y_val = 0.0;
+
+  for (int m = 0; m < N; m++) {
+    double nu = policy_interp_at_m(
+      policy_full, m, grid_size,
+      log_s, i_val, y_val,
+      logS_grid, n_logS, I_grid, n_I, Y_grid, n_Y
+    );
+    nu_path[static_cast<size_t>(m)] = nu;
+
+    double s_val = std::exp(log_s);
+    double i_drift = (-kappa * i_val + nu) * dt;
+    i_val = i_val + i_drift;
+
+    if (asian_type == 0) {
+      y_val = y_val + s_val * dt;
+    } else {
+      y_val = y_val + log_s * dt;
+    }
+
+    double log_s_drift = (r_cont + lambda_bar_T * alpha_m * i_val + lambda_bar_P * nu) * dt;
+    log_s = log_s + log_s_drift;
+  }
+
+  return nu_path;
 }
 
 // ---------------------------
@@ -400,6 +495,140 @@ Rcpp::List hjb_arithmetic_quotes_cpp(
     Rcpp::Named("V0")              = v0,
     Rcpp::Named("Vplus")           = vplus,
     Rcpp::Named("Vminus")          = vminus
+  );
+}
+
+// ---------------------------
+// Quotes + policy paths (optimal nu along expected-state path)
+// ---------------------------
+
+// [[Rcpp::export]]
+Rcpp::List hjb_arithmetic_quotes_with_policy_cpp(
+    double S0, double K, double T, int N,
+    double sigma, double r_cont,
+    double kappa, double lambda_bar_T, double lambda_bar_P,
+    double k_A, double k_B, double psi_cost,
+    Rcpp::NumericVector eta_vec,
+    double p, double I0,
+    Rcpp::NumericVector control_set,
+    int n_logS, int n_I, int n_Y
+) {
+  std::vector<double> eta(eta_vec.begin(), eta_vec.end());
+  std::vector<double> controls(control_set.begin(), control_set.end());
+
+  auto V0    = hjb_bellman_engine_single(S0,K,T,N,sigma,r_cont,kappa,lambda_bar_T,lambda_bar_P,
+                                         k_A,k_B,psi_cost,eta,p,I0,controls,n_logS,n_I,n_Y,
+                                         0, 0.0, false);
+  auto Vplus = hjb_bellman_engine_single(S0,K,T,N,sigma,r_cont,kappa,lambda_bar_T,lambda_bar_P,
+                                         k_A,k_B,psi_cost,eta,p,I0,controls,n_logS,n_I,n_Y,
+                                         0, +1.0, true);
+  auto Vminus= hjb_bellman_engine_single(S0,K,T,N,sigma,r_cont,kappa,lambda_bar_T,lambda_bar_P,
+                                         k_A,k_B,psi_cost,eta,p,I0,controls,n_logS,n_I,n_Y,
+                                         0, -1.0, true);
+
+  double v0    = Rcpp::as<double>(V0["value"]);
+  double vplus = Rcpp::as<double>(Vplus["value"]);
+  double vminus= Rcpp::as<double>(Vminus["value"]);
+
+  double seller_indiff = v0 - vminus;
+  double buyer_indiff  = vplus - v0;
+  double bid = std::min(seller_indiff, buyer_indiff);
+  double ask = std::max(seller_indiff, buyer_indiff);
+
+  std::vector<double> logS_vec = Rcpp::as<std::vector<double>>(V0["logS_grid"]);
+  std::vector<double> I_vec    = Rcpp::as<std::vector<double>>(V0["I_grid"]);
+  std::vector<double> Y_vec    = Rcpp::as<std::vector<double>>(V0["Y_grid"]);
+
+  std::vector<double> policy_short = Rcpp::as<std::vector<double>>(Vminus["policy"]);
+  std::vector<double> policy_long  = Rcpp::as<std::vector<double>>(Vplus["policy"]);
+
+  std::vector<double> seller_nu = forward_pass_policy(
+    policy_short, S0, I0, T, N, 0,
+    kappa, lambda_bar_T, lambda_bar_P, r_cont,
+    logS_vec, n_logS, I_vec, n_I, Y_vec, n_Y
+  );
+  std::vector<double> buyer_nu = forward_pass_policy(
+    policy_long, S0, I0, T, N, 0,
+    kappa, lambda_bar_T, lambda_bar_P, r_cont,
+    logS_vec, n_logS, I_vec, n_I, Y_vec, n_Y
+  );
+
+  return Rcpp::List::create(
+    Rcpp::Named("bid")             = bid,
+    Rcpp::Named("ask")             = ask,
+    Rcpp::Named("mid")             = 0.5 * (bid + ask),
+    Rcpp::Named("seller_indiff")   = seller_indiff,
+    Rcpp::Named("buyer_indiff")    = buyer_indiff,
+    Rcpp::Named("V0")              = v0,
+    Rcpp::Named("Vplus")           = vplus,
+    Rcpp::Named("Vminus")          = vminus,
+    Rcpp::Named("optimal_nu_seller")   = seller_nu,
+    Rcpp::Named("optimal_nu_buyer")    = buyer_nu
+  );
+}
+
+// [[Rcpp::export]]
+Rcpp::List hjb_geometric_quotes_with_policy_cpp(
+    double S0, double K, double T, int N,
+    double sigma, double r_cont,
+    double kappa, double lambda_bar_T, double lambda_bar_P,
+    double k_A, double k_B, double psi_cost,
+    Rcpp::NumericVector eta_vec,
+    double p, double I0,
+    Rcpp::NumericVector control_set,
+    int n_logS, int n_I, int n_Y
+) {
+  std::vector<double> eta(eta_vec.begin(), eta_vec.end());
+  std::vector<double> controls(control_set.begin(), control_set.end());
+
+  auto V0    = hjb_bellman_engine_single(S0,K,T,N,sigma,r_cont,kappa,lambda_bar_T,lambda_bar_P,
+                                         k_A,k_B,psi_cost,eta,p,I0,controls,n_logS,n_I,n_Y,
+                                         1, 0.0, false);
+  auto Vplus = hjb_bellman_engine_single(S0,K,T,N,sigma,r_cont,kappa,lambda_bar_T,lambda_bar_P,
+                                         k_A,k_B,psi_cost,eta,p,I0,controls,n_logS,n_I,n_Y,
+                                         1, +1.0, true);
+  auto Vminus= hjb_bellman_engine_single(S0,K,T,N,sigma,r_cont,kappa,lambda_bar_T,lambda_bar_P,
+                                         k_A,k_B,psi_cost,eta,p,I0,controls,n_logS,n_I,n_Y,
+                                         1, -1.0, true);
+
+  double v0    = Rcpp::as<double>(V0["value"]);
+  double vplus = Rcpp::as<double>(Vplus["value"]);
+  double vminus= Rcpp::as<double>(Vminus["value"]);
+
+  double seller_indiff = v0 - vminus;
+  double buyer_indiff  = vplus - v0;
+  double bid = std::min(seller_indiff, buyer_indiff);
+  double ask = std::max(seller_indiff, buyer_indiff);
+
+  std::vector<double> logS_vec = Rcpp::as<std::vector<double>>(V0["logS_grid"]);
+  std::vector<double> I_vec    = Rcpp::as<std::vector<double>>(V0["I_grid"]);
+  std::vector<double> Y_vec    = Rcpp::as<std::vector<double>>(V0["Y_grid"]);
+
+  std::vector<double> policy_short = Rcpp::as<std::vector<double>>(Vminus["policy"]);
+  std::vector<double> policy_long  = Rcpp::as<std::vector<double>>(Vplus["policy"]);
+
+  std::vector<double> seller_nu = forward_pass_policy(
+    policy_short, S0, I0, T, N, 1,
+    kappa, lambda_bar_T, lambda_bar_P, r_cont,
+    logS_vec, n_logS, I_vec, n_I, Y_vec, n_Y
+  );
+  std::vector<double> buyer_nu = forward_pass_policy(
+    policy_long, S0, I0, T, N, 1,
+    kappa, lambda_bar_T, lambda_bar_P, r_cont,
+    logS_vec, n_logS, I_vec, n_I, Y_vec, n_Y
+  );
+
+  return Rcpp::List::create(
+    Rcpp::Named("bid")             = bid,
+    Rcpp::Named("ask")             = ask,
+    Rcpp::Named("mid")             = 0.5 * (bid + ask),
+    Rcpp::Named("seller_indiff")   = seller_indiff,
+    Rcpp::Named("buyer_indiff")    = buyer_indiff,
+    Rcpp::Named("V0")              = v0,
+    Rcpp::Named("Vplus")           = vplus,
+    Rcpp::Named("Vminus")          = vminus,
+    Rcpp::Named("optimal_nu_seller")   = seller_nu,
+    Rcpp::Named("optimal_nu_buyer")    = buyer_nu
   );
 }
 

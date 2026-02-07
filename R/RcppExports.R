@@ -45,6 +45,14 @@ hjb_arithmetic_quotes_cpp <- function(S0, K, T, N, sigma, r_cont, kappa, lambda_
     .Call(`_AsianOption_hjb_arithmetic_quotes_cpp`, S0, K, T, N, sigma, r_cont, kappa, lambda_bar_T, lambda_bar_P, k_A, k_B, psi_cost, eta_vec, p, I0, control_set, n_logS, n_I, n_Y)
 }
 
+hjb_arithmetic_quotes_with_policy_cpp <- function(S0, K, T, N, sigma, r_cont, kappa, lambda_bar_T, lambda_bar_P, k_A, k_B, psi_cost, eta_vec, p, I0, control_set, n_logS, n_I, n_Y) {
+    .Call(`_AsianOption_hjb_arithmetic_quotes_with_policy_cpp`, S0, K, T, N, sigma, r_cont, kappa, lambda_bar_T, lambda_bar_P, k_A, k_B, psi_cost, eta_vec, p, I0, control_set, n_logS, n_I, n_Y)
+}
+
+hjb_geometric_quotes_with_policy_cpp <- function(S0, K, T, N, sigma, r_cont, kappa, lambda_bar_T, lambda_bar_P, k_A, k_B, psi_cost, eta_vec, p, I0, control_set, n_logS, n_I, n_Y) {
+    .Call(`_AsianOption_hjb_geometric_quotes_with_policy_cpp`, S0, K, T, N, sigma, r_cont, kappa, lambda_bar_T, lambda_bar_P, k_A, k_B, psi_cost, eta_vec, p, I0, control_set, n_logS, n_I, n_Y)
+}
+
 hjb_geometric_quotes_cpp <- function(S0, K, T, N, sigma, r_cont, kappa, lambda_bar_T, lambda_bar_P, k_A, k_B, psi_cost, eta_vec, p, I0, control_set, n_logS, n_I, n_Y) {
     .Call(`_AsianOption_hjb_geometric_quotes_cpp`, S0, K, T, N, sigma, r_cont, kappa, lambda_bar_T, lambda_bar_P, k_A, k_B, psi_cost, eta_vec, p, I0, control_set, n_logS, n_I, n_Y)
 }

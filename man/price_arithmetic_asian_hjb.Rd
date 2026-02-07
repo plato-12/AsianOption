@@ -79,6 +79,10 @@ A list with S3 class \code{"hjb_asian"} containing:
   \item{bid_price}{Bid (buyer’s indifference) price at t=0}
   \item{mid_price}{Mid price}
   \item{spread}{Ask minus bid}
+  \item{optimal_nu}{Optimal trading rate (seller/short) per period, length N}
+  \item{optimal_volumes}{Seller volumes per period (optimal_nu * dt)}
+  \item{optimal_nu_buyer}{Optimal trading rate (buyer/long) per period}
+  \item{optimal_volumes_buyer}{Buyer volumes per period}
   \item{asian_type}{Type of Asian option ("arithmetic")}
   \item{option_type}{Option type}
   \item{params}{List of input parameters}

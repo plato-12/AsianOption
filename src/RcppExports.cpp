@@ -254,6 +254,64 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// hjb_arithmetic_quotes_with_policy_cpp
+Rcpp::List hjb_arithmetic_quotes_with_policy_cpp(double S0, double K, double T, int N, double sigma, double r_cont, double kappa, double lambda_bar_T, double lambda_bar_P, double k_A, double k_B, double psi_cost, Rcpp::NumericVector eta_vec, double p, double I0, Rcpp::NumericVector control_set, int n_logS, int n_I, int n_Y);
+RcppExport SEXP _AsianOption_hjb_arithmetic_quotes_with_policy_cpp(SEXP S0SEXP, SEXP KSEXP, SEXP TSEXP, SEXP NSEXP, SEXP sigmaSEXP, SEXP r_contSEXP, SEXP kappaSEXP, SEXP lambda_bar_TSEXP, SEXP lambda_bar_PSEXP, SEXP k_ASEXP, SEXP k_BSEXP, SEXP psi_costSEXP, SEXP eta_vecSEXP, SEXP pSEXP, SEXP I0SEXP, SEXP control_setSEXP, SEXP n_logSSEXP, SEXP n_ISEXP, SEXP n_YSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< double >::type S0(S0SEXP);
+    Rcpp::traits::input_parameter< double >::type K(KSEXP);
+    Rcpp::traits::input_parameter< double >::type T(TSEXP);
+    Rcpp::traits::input_parameter< int >::type N(NSEXP);
+    Rcpp::traits::input_parameter< double >::type sigma(sigmaSEXP);
+    Rcpp::traits::input_parameter< double >::type r_cont(r_contSEXP);
+    Rcpp::traits::input_parameter< double >::type kappa(kappaSEXP);
+    Rcpp::traits::input_parameter< double >::type lambda_bar_T(lambda_bar_TSEXP);
+    Rcpp::traits::input_parameter< double >::type lambda_bar_P(lambda_bar_PSEXP);
+    Rcpp::traits::input_parameter< double >::type k_A(k_ASEXP);
+    Rcpp::traits::input_parameter< double >::type k_B(k_BSEXP);
+    Rcpp::traits::input_parameter< double >::type psi_cost(psi_costSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type eta_vec(eta_vecSEXP);
+    Rcpp::traits::input_parameter< double >::type p(pSEXP);
+    Rcpp::traits::input_parameter< double >::type I0(I0SEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type control_set(control_setSEXP);
+    Rcpp::traits::input_parameter< int >::type n_logS(n_logSSEXP);
+    Rcpp::traits::input_parameter< int >::type n_I(n_ISEXP);
+    Rcpp::traits::input_parameter< int >::type n_Y(n_YSEXP);
+    rcpp_result_gen = Rcpp::wrap(hjb_arithmetic_quotes_with_policy_cpp(S0, K, T, N, sigma, r_cont, kappa, lambda_bar_T, lambda_bar_P, k_A, k_B, psi_cost, eta_vec, p, I0, control_set, n_logS, n_I, n_Y));
+    return rcpp_result_gen;
+END_RCPP
+}
+// hjb_geometric_quotes_with_policy_cpp
+Rcpp::List hjb_geometric_quotes_with_policy_cpp(double S0, double K, double T, int N, double sigma, double r_cont, double kappa, double lambda_bar_T, double lambda_bar_P, double k_A, double k_B, double psi_cost, Rcpp::NumericVector eta_vec, double p, double I0, Rcpp::NumericVector control_set, int n_logS, int n_I, int n_Y);
+RcppExport SEXP _AsianOption_hjb_geometric_quotes_with_policy_cpp(SEXP S0SEXP, SEXP KSEXP, SEXP TSEXP, SEXP NSEXP, SEXP sigmaSEXP, SEXP r_contSEXP, SEXP kappaSEXP, SEXP lambda_bar_TSEXP, SEXP lambda_bar_PSEXP, SEXP k_ASEXP, SEXP k_BSEXP, SEXP psi_costSEXP, SEXP eta_vecSEXP, SEXP pSEXP, SEXP I0SEXP, SEXP control_setSEXP, SEXP n_logSSEXP, SEXP n_ISEXP, SEXP n_YSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< double >::type S0(S0SEXP);
+    Rcpp::traits::input_parameter< double >::type K(KSEXP);
+    Rcpp::traits::input_parameter< double >::type T(TSEXP);
+    Rcpp::traits::input_parameter< int >::type N(NSEXP);
+    Rcpp::traits::input_parameter< double >::type sigma(sigmaSEXP);
+    Rcpp::traits::input_parameter< double >::type r_cont(r_contSEXP);
+    Rcpp::traits::input_parameter< double >::type kappa(kappaSEXP);
+    Rcpp::traits::input_parameter< double >::type lambda_bar_T(lambda_bar_TSEXP);
+    Rcpp::traits::input_parameter< double >::type lambda_bar_P(lambda_bar_PSEXP);
+    Rcpp::traits::input_parameter< double >::type k_A(k_ASEXP);
+    Rcpp::traits::input_parameter< double >::type k_B(k_BSEXP);
+    Rcpp::traits::input_parameter< double >::type psi_cost(psi_costSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type eta_vec(eta_vecSEXP);
+    Rcpp::traits::input_parameter< double >::type p(pSEXP);
+    Rcpp::traits::input_parameter< double >::type I0(I0SEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type control_set(control_setSEXP);
+    Rcpp::traits::input_parameter< int >::type n_logS(n_logSSEXP);
+    Rcpp::traits::input_parameter< int >::type n_I(n_ISEXP);
+    Rcpp::traits::input_parameter< int >::type n_Y(n_YSEXP);
+    rcpp_result_gen = Rcpp::wrap(hjb_geometric_quotes_with_policy_cpp(S0, K, T, N, sigma, r_cont, kappa, lambda_bar_T, lambda_bar_P, k_A, k_B, psi_cost, eta_vec, p, I0, control_set, n_logS, n_I, n_Y));
+    return rcpp_result_gen;
+END_RCPP
+}
 // hjb_geometric_quotes_cpp
 Rcpp::List hjb_geometric_quotes_cpp(double S0, double K, double T, int N, double sigma, double r_cont, double kappa, double lambda_bar_T, double lambda_bar_P, double k_A, double k_B, double psi_cost, Rcpp::NumericVector eta_vec, double p, double I0, Rcpp::NumericVector control_set, int n_logS, int n_I, int n_Y);
 RcppExport SEXP _AsianOption_hjb_geometric_quotes_cpp(SEXP S0SEXP, SEXP KSEXP, SEXP TSEXP, SEXP NSEXP, SEXP sigmaSEXP, SEXP r_contSEXP, SEXP kappaSEXP, SEXP lambda_bar_TSEXP, SEXP lambda_bar_PSEXP, SEXP k_ASEXP, SEXP k_BSEXP, SEXP psi_costSEXP, SEXP eta_vecSEXP, SEXP pSEXP, SEXP I0SEXP, SEXP control_setSEXP, SEXP n_logSSEXP, SEXP n_ISEXP, SEXP n_YSEXP) {
@@ -337,6 +395,8 @@ static const R_CallMethodDef CallEntries[] = {
     {"_AsianOption_hjb_arithmetic_value_cpp", (DL_FUNC) &_AsianOption_hjb_arithmetic_value_cpp, 21},
     {"_AsianOption_hjb_geometric_value_cpp", (DL_FUNC) &_AsianOption_hjb_geometric_value_cpp, 21},
     {"_AsianOption_hjb_arithmetic_quotes_cpp", (DL_FUNC) &_AsianOption_hjb_arithmetic_quotes_cpp, 19},
+    {"_AsianOption_hjb_arithmetic_quotes_with_policy_cpp", (DL_FUNC) &_AsianOption_hjb_arithmetic_quotes_with_policy_cpp, 19},
+    {"_AsianOption_hjb_geometric_quotes_with_policy_cpp", (DL_FUNC) &_AsianOption_hjb_geometric_quotes_with_policy_cpp, 19},
     {"_AsianOption_hjb_geometric_quotes_cpp", (DL_FUNC) &_AsianOption_hjb_geometric_quotes_cpp, 19},
     {"_AsianOption_price_kemna_vorst_arithmetic_cpp", (DL_FUNC) &_AsianOption_price_kemna_vorst_arithmetic_cpp, 11},
     {"_AsianOption_price_kemna_vorst_arithmetic_binomial_cpp", (DL_FUNC) &_AsianOption_price_kemna_vorst_arithmetic_binomial_cpp, 10},
