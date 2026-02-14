@@ -158,9 +158,10 @@ static std::vector<double> forward_pass_policy(
     i_val = i_val + i_drift;
 
     if (asian_type == 0) {
-      y_val = y_val + s_val * dt;
+      y_val = y_val + (s_val / S0) * dt;  // normalized: integral of S/S0
     } else {
-      y_val = y_val + log_s * dt;
+      double log_S0_const = std::log(S0);
+      y_val = y_val + (log_s - log_S0_const) * dt;  // normalized: integral of (log S - log S0)
     }
 
     double log_s_drift = (r_cont + lambda_bar_T * alpha_m * i_val + lambda_bar_P * nu) * dt;
@@ -178,6 +179,7 @@ static std::vector<double> forward_pass_policy(
 static std::pair<double, double> solve_bellman_step(
     double log_s, double i_val, double y_val,
     int asian_type,
+    double log_S0,
     double kappa, double lambda_bar_T, double lambda_bar_P,
     double alpha_curr, double sigma, double r_cont,
     double k_A, double k_B, double psi_cost,
@@ -188,8 +190,6 @@ static std::pair<double, double> solve_bellman_step(
     const std::vector<double>& I_grid, int n_I,
     const std::vector<double>& Y_grid, int n_Y
 ) {
-  double s_val = std::exp(log_s);
-
   double best_val = -std::numeric_limits<double>::infinity();
   double best_nu  = 0.0;
 
@@ -210,9 +210,9 @@ static std::pair<double, double> solve_bellman_step(
     // Running average/integral update (eq 32)
     double y_next;
     if (asian_type == 0) {
-      y_next = y_val + s_val * dt;     // arithmetic: integral of S
+      y_next = y_val + std::exp(log_s - log_S0) * dt;  // normalized: integral of S/S0
     } else {
-      y_next = y_val + log_s * dt;     // geometric: integral of log S
+      y_next = y_val + (log_s - log_S0) * dt;  // normalized: integral of (log S - log S0)
     }
 
     // Continuation values
@@ -295,11 +295,11 @@ static Rcpp::List hjb_bellman_engine_single(
   double Y_lo, Y_hi;
   if (asian_type == 0) {
     Y_lo = 0.0;
-    Y_hi = S_max_approx * T;
+    Y_hi = (S_max_approx / S0) * T;  // normalized: exp(margin) * T
   } else {
-    double log_S_min = log_S0 - margin;
-    Y_lo = std::min(0.0, log_S_min * T);
-    Y_hi = (log_S0 + margin) * T;
+    // normalized: integral of (log S - log S0), centered near 0
+    Y_lo = -margin * T;
+    Y_hi = margin * T;
   }
   std::vector<double> Y_grid = make_uniform_grid(Y_lo, Y_hi, n_Y);
 
@@ -321,9 +321,9 @@ static Rcpp::List hjb_bellman_engine_single(
 
         double intrinsic;
         if (asian_type == 0) {
-          intrinsic = std::max(y_val / T - K, 0.0);
+          intrinsic = std::max(S0 * y_val / T - K, 0.0);  // undo normalization
         } else {
-          intrinsic = std::max(std::exp(y_val / T) - K, 0.0);
+          intrinsic = std::max(S0 * std::exp(y_val / T) - K, 0.0);  // undo normalization
         }
         V_next[idx] = payoff_sign * intrinsic;
       }
@@ -346,6 +346,7 @@ static Rcpp::List hjb_bellman_engine_single(
           auto result = solve_bellman_step(
             log_s, i_val, y_val,
             asian_type,
+            log_S0,
             kappa, lambda_bar_T, lambda_bar_P,
             alpha_m, sigma, r_cont,
             k_A, k_B, psi_cost,
