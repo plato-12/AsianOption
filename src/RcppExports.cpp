@@ -10,6 +10,31 @@ Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
 Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
+// price_arithmetic_asian_diffusion_mc_cpp
+List price_arithmetic_asian_diffusion_mc_cpp(double S0, double K, double r, double sigma, double T_mat, double lambda_T, double I0, double kappa, NumericVector eta_values, double rho, int n_steps, int n_sims, std::string option_type, bool use_control_variate, int seed);
+RcppExport SEXP _AsianOption_price_arithmetic_asian_diffusion_mc_cpp(SEXP S0SEXP, SEXP KSEXP, SEXP rSEXP, SEXP sigmaSEXP, SEXP T_matSEXP, SEXP lambda_TSEXP, SEXP I0SEXP, SEXP kappaSEXP, SEXP eta_valuesSEXP, SEXP rhoSEXP, SEXP n_stepsSEXP, SEXP n_simsSEXP, SEXP option_typeSEXP, SEXP use_control_variateSEXP, SEXP seedSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< double >::type S0(S0SEXP);
+    Rcpp::traits::input_parameter< double >::type K(KSEXP);
+    Rcpp::traits::input_parameter< double >::type r(rSEXP);
+    Rcpp::traits::input_parameter< double >::type sigma(sigmaSEXP);
+    Rcpp::traits::input_parameter< double >::type T_mat(T_matSEXP);
+    Rcpp::traits::input_parameter< double >::type lambda_T(lambda_TSEXP);
+    Rcpp::traits::input_parameter< double >::type I0(I0SEXP);
+    Rcpp::traits::input_parameter< double >::type kappa(kappaSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type eta_values(eta_valuesSEXP);
+    Rcpp::traits::input_parameter< double >::type rho(rhoSEXP);
+    Rcpp::traits::input_parameter< int >::type n_steps(n_stepsSEXP);
+    Rcpp::traits::input_parameter< int >::type n_sims(n_simsSEXP);
+    Rcpp::traits::input_parameter< std::string >::type option_type(option_typeSEXP);
+    Rcpp::traits::input_parameter< bool >::type use_control_variate(use_control_variateSEXP);
+    Rcpp::traits::input_parameter< int >::type seed(seedSEXP);
+    rcpp_result_gen = Rcpp::wrap(price_arithmetic_asian_diffusion_mc_cpp(S0, K, r, sigma, T_mat, lambda_T, I0, kappa, eta_values, rho, n_steps, n_sims, option_type, use_control_variate, seed));
+    return rcpp_result_gen;
+END_RCPP
+}
 // arithmetic_asian_bounds_cpp
 Rcpp::List arithmetic_asian_bounds_cpp(double S0, double K, double r, double u, double d, double lambda, double v_u, double v_d, int n, std::string option_type);
 RcppExport SEXP _AsianOption_arithmetic_asian_bounds_cpp(SEXP S0SEXP, SEXP KSEXP, SEXP rSEXP, SEXP uSEXP, SEXP dSEXP, SEXP lambdaSEXP, SEXP v_uSEXP, SEXP v_dSEXP, SEXP nSEXP, SEXP option_typeSEXP) {
@@ -384,6 +409,7 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
+    {"_AsianOption_price_arithmetic_asian_diffusion_mc_cpp", (DL_FUNC) &_AsianOption_price_arithmetic_asian_diffusion_mc_cpp, 15},
     {"_AsianOption_arithmetic_asian_bounds_cpp", (DL_FUNC) &_AsianOption_arithmetic_asian_bounds_cpp, 10},
     {"_AsianOption_arithmetic_asian_bounds_extended_cpp", (DL_FUNC) &_AsianOption_arithmetic_asian_bounds_extended_cpp, 11},
     {"_AsianOption_arithmetic_asian_bounds_transient_cpp", (DL_FUNC) &_AsianOption_arithmetic_asian_bounds_transient_cpp, 12},
