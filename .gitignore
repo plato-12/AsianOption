@@ -13,5 +13,5 @@ src/*.dll
 CLAUDE.md
 transient_impact_theory.md
 HJB_USAGE_GUIDE.md
-*.tex
 examples/
+.DS_Store

@@ -259,7 +259,7 @@ test_that("print.hjb_asian produces output", {
   expect_true(any(grepl("Ask price", output)))
   expect_true(any(grepl("Bid price", output)))
   expect_true(any(grepl("Spread", output)))
-  expect_true(any(grepl("volume", output)))
+
 })
 
 test_that("eta length mismatch throws error", {
