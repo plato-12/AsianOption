@@ -5,18 +5,12 @@
 #include <limits>
 #include <algorithm>
 
-// ---------------------------
-// Interpolation utilities
-// ---------------------------
-
-// Find bracketing index and fractional weight for 1D interpolation
 static int find_bracket(const std::vector<double>& grid, int n, double val, double& weight) {
   if (n <= 1) { weight = 0.0; return 0; }
 
   if (val <= grid[0]) { weight = 0.0; return 0; }
   if (val >= grid[n - 1]) { weight = 1.0; return n - 2; }
 
-  // Uniform grid assumption
   double dx = grid[1] - grid[0];
   int idx = static_cast<int>((val - grid[0]) / dx);
   if (idx >= n - 1) idx = n - 2;
@@ -30,7 +24,6 @@ static int find_bracket(const std::vector<double>& grid, int n, double val, doub
   return idx;
 }
 
-// Trilinear interpolation on flat 3D array V[is, ii, iy]
 static double trilinear_interp(
     const std::vector<double>& V,
     const std::vector<double>& grid_x, int n_x,
@@ -66,7 +59,6 @@ static double trilinear_interp(
   return c0 * (1.0 - wx) + c1 * wx;
 }
 
-// Trilinear interpolation on 3D slice (pointer to first element)
 static double trilinear_interp_slice(
     const double* V,
     const std::vector<double>& grid_x, int n_x,
@@ -102,7 +94,6 @@ static double trilinear_interp_slice(
   return c0 * (1.0 - wx) + c1 * wx;
 }
 
-// Build uniform grid
 static std::vector<double> make_uniform_grid(double lo, double hi, int n) {
   std::vector<double> grid(n);
   if (n <= 1) { grid[0] = 0.5 * (lo + hi); return grid; }
@@ -111,7 +102,6 @@ static std::vector<double> make_uniform_grid(double lo, double hi, int n) {
   return grid;
 }
 
-// Interpolate policy (optimal nu) at period m and state (log_s, i_val, y_val)
 static double policy_interp_at_m(
     const std::vector<double>& policy_full,
     int m, int grid_size,
@@ -127,7 +117,6 @@ static double policy_interp_at_m(
   );
 }
 
-// Forward pass: expected-state path from (log_S0, I0, 0), returns nu[0..N-1]
 static std::vector<double> forward_pass_policy(
     const std::vector<double>& policy_full,
     double S0, double I0, double T, int N, int asian_type,
@@ -158,10 +147,10 @@ static std::vector<double> forward_pass_policy(
     i_val = i_val + i_drift;
 
     if (asian_type == 0) {
-      y_val = y_val + (s_val / S0) * dt;  // normalized: integral of S/S0
+      y_val = y_val + (s_val / S0) * dt;
     } else {
       double log_S0_const = std::log(S0);
-      y_val = y_val + (log_s - log_S0_const) * dt;  // normalized: integral of (log S - log S0)
+      y_val = y_val + (log_s - log_S0_const) * dt;
     }
 
     double log_s_drift = (r_cont + lambda_bar_T * alpha_m * i_val + lambda_bar_P * nu) * dt;
@@ -171,10 +160,6 @@ static std::vector<double> forward_pass_policy(
   return nu_path;
 }
 
-// ---------------------------
-// One-step Bellman (single operator!)
-// Always maximize: J = -cost*dt + disc * E[V_next]
-// ---------------------------
 
 static std::pair<double, double> solve_bellman_step(
     double log_s, double i_val, double y_val,
@@ -196,26 +181,22 @@ static std::pair<double, double> solve_bellman_step(
   for (size_t jc = 0; jc < control_set.size(); jc++) {
     double nu = control_set[jc];
 
-    // Impact state transitions (eq 30)
     double i_drift = (-kappa * i_val + nu) * dt;
     double i_plus  = i_val + i_drift + eta_m * sqrt_dt;
     double i_minus = i_val + i_drift - eta_m * sqrt_dt;
 
-    // Stock price transitions in log space (eq 31)
     double log_s_drift = (r_cont + lambda_bar_T * alpha_curr * i_val +
                           lambda_bar_P * nu) * dt;
     double log_s_plus  = log_s + log_s_drift + sigma * sqrt_dt;
     double log_s_minus = log_s + log_s_drift - sigma * sqrt_dt;
 
-    // Running average/integral update (eq 32)
     double y_next;
     if (asian_type == 0) {
-      y_next = y_val + std::exp(log_s - log_S0) * dt;  // normalized: integral of S/S0
+      y_next = y_val + std::exp(log_s - log_S0) * dt;
     } else {
-      y_next = y_val + (log_s - log_S0) * dt;  // normalized: integral of (log S - log S0)
+      y_next = y_val + (log_s - log_S0) * dt;
     }
 
-    // Continuation values
     double cont_plus = trilinear_interp(
       V_next, logS_grid, n_logS, I_grid, n_I, Y_grid, n_Y,
       log_s_plus, i_plus, y_next
@@ -225,7 +206,6 @@ static std::pair<double, double> solve_bellman_step(
       log_s_minus, i_minus, y_next
     );
 
-    // Running cost (assumed nonnegative). We ALWAYS subtract it.
     double cost = running_cost(nu, k_A, k_B, psi_cost) * dt;
 
     double J = -cost + discount * (p * cont_plus + (1.0 - p) * cont_minus);
@@ -239,11 +219,6 @@ static std::pair<double, double> solve_bellman_step(
   return {best_val, best_nu};
 }
 
-// ---------------------------
-// Core solver: returns value and optional policy
-// asian_type: 0 arithmetic, 1 geometric
-// payoff_sign: 0 baseline, +1 long option, -1 short option
-// ---------------------------
 
 static Rcpp::List hjb_bellman_engine_single(
     double S0, double K, double T, int N,
@@ -263,7 +238,6 @@ static Rcpp::List hjb_bellman_engine_single(
   double alpha_m = 1.0 - kappa * dt;
   double discount = std::exp(-r_cont * dt);
 
-  // --- Grids ---
   double log_S0 = std::log(S0);
   double max_drift = std::abs(r_cont) +
     std::abs(lambda_bar_T) * 10.0 + std::abs(lambda_bar_P) * 10.0;
@@ -290,29 +264,24 @@ static Rcpp::List hjb_bellman_engine_single(
 
   std::vector<double> I_grid = make_uniform_grid(-I_bound, I_bound, n_I);
 
-  // Y grid
   double S_max_approx = S0 * std::exp(margin);
   double Y_lo, Y_hi;
   if (asian_type == 0) {
     Y_lo = 0.0;
-    Y_hi = (S_max_approx / S0) * T;  // normalized: exp(margin) * T
+    Y_hi = (S_max_approx / S0) * T;
   } else {
-    // normalized: integral of (log S - log S0), centered near 0
     Y_lo = -margin * T;
     Y_hi = margin * T;
   }
   std::vector<double> Y_grid = make_uniform_grid(Y_lo, Y_hi, n_Y);
 
-  // --- Allocate value arrays ---
   int grid_size = n_logS * n_I * n_Y;
   std::vector<double> V_next(grid_size, 0.0);
   std::vector<double> V_curr(grid_size, 0.0);
 
-  // Optional policy storage: policy[m, is, ii, iy] = nu*
   std::vector<double> policy_full;
   if (store_policy) policy_full.resize(static_cast<size_t>(N) * grid_size, 0.0);
 
-  // --- Terminal condition ---
   for (int is = 0; is < n_logS; is++) {
     for (int ii = 0; ii < n_I; ii++) {
       for (int iy = 0; iy < n_Y; iy++) {
@@ -321,16 +290,15 @@ static Rcpp::List hjb_bellman_engine_single(
 
         double intrinsic;
         if (asian_type == 0) {
-          intrinsic = std::max(S0 * y_val / T - K, 0.0);  // undo normalization
+          intrinsic = std::max(S0 * y_val / T - K, 0.0);
         } else {
-          intrinsic = std::max(S0 * std::exp(y_val / T) - K, 0.0);  // undo normalization
+          intrinsic = std::max(S0 * std::exp(y_val / T) - K, 0.0);
         }
         V_next[idx] = payoff_sign * intrinsic;
       }
     }
   }
 
-  // --- Backward induction ---
   for (int m = N - 1; m >= 0; m--) {
     double eta_m = eta_vec[m];
 
@@ -369,7 +337,6 @@ static Rcpp::List hjb_bellman_engine_single(
     V_next.swap(V_curr);
   }
 
-  // Value at (log(S0), I0, 0)
   double value = trilinear_interp(
     V_next, logS_grid, n_logS, I_grid, n_I, Y_grid, n_Y,
     log_S0, I0, 0.0
@@ -389,11 +356,6 @@ static Rcpp::List hjb_bellman_engine_single(
 
   return out;
 }
-
-// ---------------------------
-// Exported helpers: value solves
-// payoff_sign: 0 baseline, +1 long, -1 short
-// ---------------------------
 
 // [[Rcpp::export]]
 Rcpp::List hjb_arithmetic_value_cpp(
@@ -451,12 +413,6 @@ Rcpp::List hjb_geometric_value_cpp(
   );
 }
 
-// ---------------------------
-// Exported: bid/ask quotes via 3 solves
-// Raw: seller_indiff = V0 - Vminus (MM sell), buyer_indiff = Vplus - V0 (MM buy).
-// We enforce bid <= ask by convention: bid = min, ask = max.
-// ---------------------------
-
 // [[Rcpp::export]]
 Rcpp::List hjb_arithmetic_quotes_cpp(
     double S0, double K, double T, int N,
@@ -498,10 +454,6 @@ Rcpp::List hjb_arithmetic_quotes_cpp(
     Rcpp::Named("Vminus")          = vminus
   );
 }
-
-// ---------------------------
-// Quotes + policy paths (optimal nu along expected-state path)
-// ---------------------------
 
 // [[Rcpp::export]]
 Rcpp::List hjb_arithmetic_quotes_with_policy_cpp(

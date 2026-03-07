@@ -22,7 +22,6 @@ List price_arithmetic_asian_diffusion_mc_cpp(
   double sqrt_dt = std::sqrt(dt);
   double discount = std::exp(-r * T_mat);
 
-  // Precompute drift coefficient for log-Euler scheme
   double half_sigma_sq = 0.5 * sigma * sigma;
   double rho_complement = std::sqrt(1.0 - rho * rho);
 
@@ -32,40 +31,30 @@ List price_arithmetic_asian_diffusion_mc_cpp(
   for (int j = 0; j < n_sims; j++) {
     double S = S0;
     double I = I0;
-    double Y = 0.0;          // running arithmetic integral
-    double sum_log_S = std::log(S0);  // running sum of log(S) for geometric average
+    double Y = 0.0;
+    double sum_log_S = std::log(S0);
 
     for (int m = 0; m < n_steps; m++) {
-      // Generate correlated normals
       double N1 = R::rnorm(0.0, 1.0);
       double N2 = R::rnorm(0.0, 1.0);
-      double Z1 = N1;                              // drives S
-      double Z2 = rho * N1 + rho_complement * N2;  // drives I
+      double Z1 = N1;
+      double Z2 = rho * N1 + rho_complement * N2;
 
-      // Accumulate Y before updating S (left-point rule: dY = S dt)
       Y += S * dt;
 
-      // Update I: Euler-Maruyama
-      // dI = -kappa * I dt + eta(t) dW^I
       double eta_m = eta_values[m];
       I = I + (-kappa * I) * dt + eta_m * Z2 * sqrt_dt;
 
-      // Update S: log-Euler (exact for GBM part)
-      // log S_{m+1} = log S_m + (r - 0.5*sigma^2 + lambda_T*I_m)*dt + sigma*Z1*sqrt(dt)
       double log_S_increment = (r - half_sigma_sq + lambda_T * I) * dt + sigma * Z1 * sqrt_dt;
       S = S * std::exp(log_S_increment);
 
-      // Accumulate log(S) for geometric average
       sum_log_S += std::log(S);
     }
 
-    // Arithmetic average: Y_T / T
     double A = Y / T_mat;
 
-    // Geometric average: exp(sum_log_S / (n_steps+1))
     double G = std::exp(sum_log_S / (n_steps + 1));
 
-    // Compute payoffs
     if (option_type == "call") {
       arith_payoffs[j] = discount * std::max(0.0, A - K);
       geom_payoffs[j] = discount * std::max(0.0, G - K);
@@ -75,7 +64,6 @@ List price_arithmetic_asian_diffusion_mc_cpp(
     }
   }
 
-  // Compute statistics
   double mean_arith = Rcpp::mean(arith_payoffs);
   double std_arith = Rcpp::sd(arith_payoffs);
 
@@ -84,13 +72,10 @@ List price_arithmetic_asian_diffusion_mc_cpp(
   double geom_mc_price = Rcpp::mean(geom_payoffs);
 
   if (use_control_variate) {
-    // Control variate: use difference (arith - geom) + E[geom]
-    // The geometric closed-form is passed separately from R
     NumericVector diffs = arith_payoffs - geom_payoffs;
     double mean_diff = Rcpp::mean(diffs);
     double std_diff = Rcpp::sd(diffs);
 
-    // Return the mean difference; R will add the closed-form geometric price
     price_estimate = mean_diff;
     std_error = std_diff / std::sqrt((double)n_sims);
   } else {
@@ -98,7 +83,6 @@ List price_arithmetic_asian_diffusion_mc_cpp(
     std_error = std_arith / std::sqrt((double)n_sims);
   }
 
-  // Correlation between arithmetic and geometric payoffs
   double correlation = 0.0;
   {
     double mean_a = Rcpp::mean(arith_payoffs);

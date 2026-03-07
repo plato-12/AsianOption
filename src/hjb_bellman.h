@@ -7,7 +7,6 @@
 #include <algorithm>
 #include <limits>
 
-// Convex running cost: C(nu) = k_A * (nu+)^{1+psi} + k_B * (nu-)^{1+psi}
 inline double running_cost(double nu, double k_A, double k_B, double psi_cost) {
     double nu_plus = std::max(nu, 0.0);
     double nu_minus = std::max(-nu, 0.0);

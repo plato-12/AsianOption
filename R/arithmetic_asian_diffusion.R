@@ -1,8 +1,7 @@
 #' Arithmetic Asian Option Price via Euler-Maruyama Monte Carlo (Exogenous Diffusion)
 #'
 #' Prices an arithmetic Asian option under exogenous transient price impact
-#' using Euler-Maruyama Monte Carlo simulation. This implements the numerical
-#' solution to the PDE from Proposition 3.1 (Section 3.2.1 of the paper).
+#' using Euler-Maruyama Monte Carlo simulation.
 #'
 #' @param S0 Initial stock price (positive).
 #' @param K Strike price (positive).
@@ -42,7 +41,7 @@
 #'
 #' @details
 #' In the exogenous regime with no active trading (\eqn{\nu \equiv 0}), the
-#' stock price dynamics are (equation 19 of the paper):
+#' stock price dynamics are:
 #'
 #' \deqn{dS_t = S_t (r + \bar{\lambda}_T I_t)\, dt + \sigma S_t\, dW_t}
 #' \deqn{dI_t = -\kappa I_t\, dt + \eta(t)\, dW^I_t}
@@ -93,7 +92,6 @@ price_arithmetic_asian_diffusion <- function(S0, K, r, sigma, T,
                                              use_control_variate = TRUE,
                                              seed = 0,
                                              n_quad = 1000) {
-  # Input validation
   if (S0 <= 0) stop("S0 must be positive")
   if (K <= 0) stop("K must be positive")
   if (r <= 0) stop("r must be positive")
@@ -108,7 +106,6 @@ price_arithmetic_asian_diffusion <- function(S0, K, r, sigma, T,
   if (n_steps < 1) stop("n_steps must be at least 1")
   if (n_sims < 1) stop("n_sims must be at least 1")
 
-  # Precompute eta values on the time grid
   dt <- T / n_steps
   t_grid <- seq(0, T - dt, length.out = n_steps)  # left endpoints [0, dt, ..., T-dt]
 
@@ -122,7 +119,6 @@ price_arithmetic_asian_diffusion <- function(S0, K, r, sigma, T,
     eta_values <- rep(eta, n_steps)
   }
 
-  # Run C++ Monte Carlo engine
   mc_result <- price_arithmetic_asian_diffusion_mc_cpp(
     S0 = S0, K = K, r = r, sigma = sigma,
     T_mat = T, lambda_T = lambda_T, I0 = I0, kappa = kappa,
@@ -133,7 +129,6 @@ price_arithmetic_asian_diffusion <- function(S0, K, r, sigma, T,
     seed = seed
   )
 
-  # Compute geometric closed-form price for benchmark / control variate
   geom_closed_form <- price_geometric_asian_diffusion(
     S0 = S0, K = K, r = r, sigma = sigma, T = T,
     lambda_T = lambda_T, I0 = I0, kappa = kappa,
@@ -143,7 +138,6 @@ price_arithmetic_asian_diffusion <- function(S0, K, r, sigma, T,
   )
 
   if (use_control_variate) {
-    # price_estimate from C++ is mean(arith - geom); add closed-form geometric
     price <- mc_result$price_estimate + geom_closed_form
     std_error <- mc_result$std_error
   } else {
@@ -151,7 +145,6 @@ price_arithmetic_asian_diffusion <- function(S0, K, r, sigma, T,
     std_error <- mc_result$std_error
   }
 
-  # Ensure non-negative price
   price <- max(price, 0)
 
   ci_margin <- 1.96 * std_error
