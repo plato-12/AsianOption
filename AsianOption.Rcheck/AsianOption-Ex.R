@@ -1,0 +1,173 @@
+pkgname <- "AsianOption"
+source(file.path(R.home("share"), "R", "examples-header.R"))
+options(warn = 1)
+base::assign(".ExTimings", "AsianOption-Ex.timings", pos = 'CheckExEnv')
+base::cat("name\tuser\tsystem\telapsed\n", file=base::get(".ExTimings", pos = 'CheckExEnv'))
+base::assign(".format_ptime",
+function(x) {
+  if(!is.na(x[4L])) x[1L] <- x[1L] + x[4L]
+  if(!is.na(x[5L])) x[2L] <- x[2L] + x[5L]
+  options(OutDec = '.')
+  format(x[1L:3L], digits = 7L)
+},
+pos = 'CheckExEnv')
+
+### * </HEADER>
+library('AsianOption')
+
+base::assign(".oldSearch", base::search(), pos = 'CheckExEnv')
+base::assign(".old_wd", base::getwd(), pos = 'CheckExEnv')
+cleanEx()
+nameEx("AsianOption-package")
+### * AsianOption-package
+
+flush(stderr()); flush(stdout())
+
+base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+### Name: AsianOption-package
+### Title: AsianOption: Asian Option Pricing under Price Impact
+### Aliases: AsianOption AsianOption-package
+### Keywords: internal
+
+### ** Examples
+
+# Kemna-Vorst benchmark (frictionless)
+price_kemna_vorst_geometric(
+  S0 = 100, K = 100, r = 0.05, sigma = 0.2,
+  T0 = 0, T_mat = 1
+)
+
+# Exogenous diffusion closed-form (geometric Asian with impact)
+price_geometric_asian_diffusion(
+  S0 = 100, K = 100, r = 0.05, sigma = 0.2, T = 1,
+  lambda_T = 0.05, I0 = 0, kappa = 1, eta = 0.5, rho = 0
+)
+
+
+
+
+base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+base::cat("AsianOption-package", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+cleanEx()
+nameEx("price_arithmetic_asian_diffusion")
+### * price_arithmetic_asian_diffusion
+
+flush(stderr()); flush(stdout())
+
+base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+### Name: price_arithmetic_asian_diffusion
+### Title: Arithmetic Asian Option Price via Euler-Maruyama Monte Carlo
+###   (Exogenous Diffusion)
+### Aliases: price_arithmetic_asian_diffusion
+
+### ** Examples
+
+# Basic call pricing
+price_arithmetic_asian_diffusion(
+  S0 = 100, K = 100, r = 0.05, sigma = 0.2, T = 1,
+  lambda_T = 0.01, I0 = 0, kappa = 1, eta = 0.1, rho = 0,
+  n_steps = 100, n_sims = 10000, seed = 42
+)
+
+# With time-dependent eta
+eta_func <- function(t) 0.1 * (1 + 0.5 * t)
+price_arithmetic_asian_diffusion(
+  S0 = 100, K = 100, r = 0.05, sigma = 0.2, T = 1,
+  lambda_T = 0.01, I0 = 0.5, kappa = 2, eta = eta_func, rho = 0.3,
+  n_steps = 100, n_sims = 10000, seed = 42
+)
+
+
+
+
+base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+base::cat("price_arithmetic_asian_diffusion", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+cleanEx()
+nameEx("price_geometric_asian_diffusion")
+### * price_geometric_asian_diffusion
+
+flush(stderr()); flush(stdout())
+
+base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+### Name: price_geometric_asian_diffusion
+### Title: Geometric Asian Option Price in Exogenous Diffusion Limit
+### Aliases: price_geometric_asian_diffusion
+
+### ** Examples
+
+# Example 1: Constant eta, no correlation
+price_geometric_asian_diffusion(
+  S0 = 100, K = 100, r = 0.05, sigma = 0.2, T = 1,
+  lambda_T = 0.01, I0 = 0, kappa = 1, eta = 0.1, rho = 0
+)
+
+# Example 2: Time-dependent eta
+eta_func <- function(t) 0.1 * (1 + 0.5 * t)
+price_geometric_asian_diffusion(
+  S0 = 100, K = 100, r = 0.05, sigma = 0.2, T = 1,
+  lambda_T = 0.01, I0 = 0.5, kappa = 2, eta = eta_func, rho = 0.3
+)
+
+
+
+
+base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+base::cat("price_geometric_asian_diffusion", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+cleanEx()
+nameEx("price_kemna_vorst_arithmetic")
+### * price_kemna_vorst_arithmetic
+
+flush(stderr()); flush(stdout())
+
+base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+### Name: price_kemna_vorst_arithmetic
+### Title: Kemna-Vorst Arithmetic Average Asian Option
+### Aliases: price_kemna_vorst_arithmetic
+
+### ** Examples
+
+price_kemna_vorst_arithmetic(
+  S0 = 100, K = 100, r = 0.05, sigma = 0.2,
+  T0 = 0, T_mat = 1, n = 50, M = 10000
+)
+
+
+
+
+base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+base::cat("price_kemna_vorst_arithmetic", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+cleanEx()
+nameEx("price_kemna_vorst_geometric")
+### * price_kemna_vorst_geometric
+
+flush(stderr()); flush(stdout())
+
+base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+### Name: price_kemna_vorst_geometric
+### Title: Kemna-Vorst Geometric Average Asian Option
+### Aliases: price_kemna_vorst_geometric
+
+### ** Examples
+
+price_kemna_vorst_geometric(
+  S0 = 100, K = 100, r = 0.05, sigma = 0.2,
+  T0 = 0, T_mat = 1, option_type = "call"
+)
+
+
+
+
+base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+base::cat("price_kemna_vorst_geometric", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+### * <FOOTER>
+###
+cleanEx()
+options(digits = 7L)
+base::cat("Time elapsed: ", proc.time() - base::get("ptime", pos = 'CheckExEnv'),"\n")
+grDevices::dev.off()
+###
+### Local variables: ***
+### mode: outline-minor ***
+### outline-regexp: "\\(> \\)?### [*]+" ***
+### End: ***
+quit('no')

@@ -1,0 +1,23 @@
+price_arithmetic_asian_diffusion
+                        Arithmetic Asian Option Price via
+                        Euler-Maruyama Monte Carlo (Exogenous
+                        Diffusion)
+price_arithmetic_asian_hjb
+                        Price Arithmetic Asian Option via HJB Bellman
+                        Scheme (Endogenous Impact)
+price_geometric_asian_diffusion
+                        Geometric Asian Option Price in Exogenous
+                        Diffusion Limit
+price_geometric_asian_hjb
+                        Price Geometric Asian Option via HJB Bellman
+                        Scheme (Endogenous Impact)
+price_kemna_vorst_arithmetic
+                        Kemna-Vorst Arithmetic Average Asian Option
+price_kemna_vorst_geometric
+                        Kemna-Vorst Geometric Average Asian Option
+print.hjb_asian         Print method for HJB Asian option results
+print.kemna_vorst_arithmetic
+                        Print Method for Kemna-Vorst Arithmetic Results
+summary.kemna_vorst_arithmetic
+                        Summary Method for Kemna-Vorst Arithmetic
+                        Results

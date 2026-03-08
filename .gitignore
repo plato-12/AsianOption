@@ -10,3 +10,8 @@ src/*.dll
 /Meta/
 ..Rcheck/
 *.tar.gz
+CLAUDE.md
+transient_impact_theory.md
+HJB_USAGE_GUIDE.md
+examples/
+.DS_Store
