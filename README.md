@@ -1,4 +1,4 @@
-# AsianOption: Asian Option Pricing under Price Impact
+# AsianOption: Asian Option Pricing with Price Impact
 
 <!-- badges: start -->
 
@@ -8,17 +8,7 @@
 
 ## Overview
 
-AsianOption implements valuation of Asian options under transient and
-permanent market impact, as described in Tiwari and Majumdar (2025). The
-package provides three complementary pricing approaches:
-
-1. **Kemna-Vorst benchmark** — frictionless Black-Scholes-type pricing
-   for geometric and arithmetic Asian options.
-2. **Exogenous diffusion** — passive trading regime where the impact
-   state evolves as an exogenous Ornstein-Uhlenbeck process. Closed-form
-   for geometric Asians; Monte Carlo for arithmetic Asians.
-3. **Endogenous HJB** — strategic trading regime solved via a tree-based
-   Bellman recursion, producing indifference bid and ask prices.
+AsianOption implements binomial tree pricing for Asian options incorporating market price impact from hedging activities. The package extends the Cox-Ross-Rubinstein (CRR) binomial model to account for price movements caused by large hedging trades.
 
 ## Installation
 
@@ -33,77 +23,77 @@ devtools::install_github("plato-12/AsianOption")
 
 ## Quick Start
 
-### Kemna-Vorst Benchmark (Frictionless)
+### Geometric Asian Option Pricing
 
 ``` r
 library(AsianOption)
 
-# Geometric Asian call (closed-form)
-price_kemna_vorst_geometric(
-  S0 = 100, K = 100, r = 0.05, sigma = 0.2, Time = 1
+# Price a geometric Asian call option with price impact
+price <- price_geometric_asian(
+  S0 = 100,      # Initial stock price
+  K = 100,       # Strike price
+  r = 1.05,      # Gross risk-free rate (5%)
+  u = 1.2,       # Up factor
+  d = 0.8,       # Down factor
+  lambda = 0.1,  # Price impact coefficient
+  v_u = 1,       # Hedging volume (up)
+  v_d = 1,       # Hedging volume (down)
+  n = 10         # Time steps
 )
-
-# Arithmetic Asian call (Monte Carlo)
-price_kemna_vorst_arithmetic(
-  S0 = 100, K = 100, r = 0.05, sigma = 0.2, Time = 1
-)
+print(price)
 ```
 
-### Exogenous Diffusion (with Impact)
+### Arithmetic Asian Option Bounds
 
 ``` r
-# Geometric Asian call — closed-form (Theorem 3.2)
-price_geometric_asian_diffusion(
-  S0 = 100, K = 100, r = 0.05, sigma = 0.2, T = 1,
-  lambda_T = 0.05, I0 = 0, kappa = 1, eta = 0.5, rho = 0
+# Compute bounds for arithmetic Asian options
+bounds <- arithmetic_asian_bounds(
+  S0 = 100, K = 100, r = 1.05,
+  u = 1.2, d = 0.8,
+  lambda = 0.1, v_u = 1, v_d = 1, n = 5
 )
-
-# Arithmetic Asian call — Monte Carlo
-price_arithmetic_asian_diffusion(
-  S0 = 100, K = 100, r = 0.05, sigma = 0.2, T_mat = 1,
-  lambda_T = 0.05, I0 = 0, kappa = 1, eta = 0.5, rho = 0
-)
+print(bounds)
 ```
 
-### Endogenous HJB (Strategic Trading)
+### Monte Carlo for Large n
 
 ``` r
-# Geometric Asian — bid/ask via Bellman scheme (Algorithm 1)
-price_geometric_asian_hjb(
-  S0 = 100, K = 100, Time = 1, N = 30,
-  sigma = 0.2, r = 0.05, kappa = 1,
-  lambda_bar_T = 0.05, lambda_bar_P = 0.025,
-  k_A = 0.5, k_B = 0.5, psi_cost = 1.0,
-  eta = 0.5, rho = 0, I0 = 0
+# For n > 20, Monte Carlo is automatically used
+result <- price_geometric_asian(
+  S0 = 100, K = 100, r = 1.05, u = 1.2, d = 0.8,
+  lambda = 0.1, v_u = 1, v_d = 1, n = 50
 )
+#> Using Monte Carlo method for n=50 (> 20) with 100000 simulations
 
-# Arithmetic Asian — bid/ask via Bellman scheme
-price_arithmetic_asian_hjb(
-  S0 = 100, K = 100, Time = 1, N = 30,
-  sigma = 0.2, r = 0.05, kappa = 1,
-  lambda_bar_T = 0.05, lambda_bar_P = 0.025,
-  k_A = 0.5, k_B = 0.5, psi_cost = 1.0,
-  eta = 0.5, rho = 0, I0 = 0
+# Get full Monte Carlo output with error estimates
+mc_result <- price_geometric_asian_mc(
+  S0 = 100, K = 100, r = 1.05, u = 1.2, d = 0.8,
+  lambda = 0.1, v_u = 1, v_d = 1, n = 50,
+  n_simulations = 100000, seed = 42
 )
+print(mc_result)
+#> Geometric Asian Option Price (Monte Carlo)
+#> ==========================================
+#> Price:       13.899166
+#> Std Error:   0.109300 (0.79%)
+#> 95% CI:      [13.684937, 14.113395]
+#> Simulations: 100000
 ```
 
 ## Main Functions
 
-- `price_kemna_vorst_geometric()`: Kemna-Vorst geometric Asian (frictionless)
-- `price_kemna_vorst_arithmetic()`: Kemna-Vorst arithmetic Asian (frictionless)
-- `price_geometric_asian_diffusion()`: Exogenous diffusion geometric Asian (closed-form)
-- `price_arithmetic_asian_diffusion()`: Exogenous diffusion arithmetic Asian (Monte Carlo)
-- `price_geometric_asian_hjb()`: Endogenous HJB geometric Asian (Bellman scheme)
-- `price_arithmetic_asian_hjb()`: Endogenous HJB arithmetic Asian (Bellman scheme)
+-   `price_geometric_asian()`: Price geometric Asian options (calls/puts)
+-   `price_geometric_asian_mc()`: Monte Carlo pricing with error estimates
+-   `arithmetic_asian_bounds()`: Bounds for arithmetic Asian options
+-   `compute_p_adj()`: Compute adjusted risk-neutral probability
+-   `check_no_arbitrage()`: Validate no-arbitrage conditions
 
 ## Citation
 
 If you use this package in your research, please cite:
 
-Tiwari, P., & Majumdar, S. (2025). Asian option valuation under price
-impact. *arXiv preprint*.
-<https://doi.org/10.48550/arXiv.2512.07154>
+Tiwari, P., & Majumdar, S. (2025). Asian option valuation under price impact. *arXiv preprint*. <https://doi.org/10.48550/arXiv.2512.07154>
 
 ## License
 
-GPL (>= 3)
+GPL (\>= 3)

@@ -5,6 +5,38 @@ price_arithmetic_asian_diffusion_mc_cpp <- function(S0, K, r, sigma, T_mat, lamb
     .Call(`_AsianOption_price_arithmetic_asian_diffusion_mc_cpp`, S0, K, r, sigma, T_mat, lambda_T, I0, kappa, eta_values, rho, n_steps, n_sims, option_type, use_control_variate, seed)
 }
 
+arithmetic_asian_bounds_cpp <- function(S0, K, r, u, d, lambda, v_u, v_d, n, option_type = "call") {
+    .Call(`_AsianOption_arithmetic_asian_bounds_cpp`, S0, K, r, u, d, lambda, v_u, v_d, n, option_type)
+}
+
+arithmetic_asian_bounds_extended_cpp <- function(S0, K, r, u, d, lambda, v_u, v_d, n, compute_path_specific = FALSE, option_type = "call") {
+    .Call(`_AsianOption_arithmetic_asian_bounds_extended_cpp`, S0, K, r, u, d, lambda, v_u, v_d, n, compute_path_specific, option_type)
+}
+
+arithmetic_asian_bounds_transient_cpp <- function(S0, K, r, u, d, lambda_P, lambda_T, alpha, psi, volumes, compute_path_specific = FALSE, option_type = "call") {
+    .Call(`_AsianOption_arithmetic_asian_bounds_transient_cpp`, S0, K, r, u, d, lambda_P, lambda_T, alpha, psi, volumes, compute_path_specific, option_type)
+}
+
+price_european_call_cpp <- function(S0, K, r, u, d, lambda, v_u, v_d, n) {
+    .Call(`_AsianOption_price_european_call_cpp`, S0, K, r, u, d, lambda, v_u, v_d, n)
+}
+
+price_european_put_cpp <- function(S0, K, r, u, d, lambda, v_u, v_d, n) {
+    .Call(`_AsianOption_price_european_put_cpp`, S0, K, r, u, d, lambda, v_u, v_d, n)
+}
+
+generate_all_paths <- function(n) {
+    .Call(`_AsianOption_generate_all_paths`, n)
+}
+
+price_geometric_asian_cpp <- function(S0, K, r, u, d, lambda, v_u, v_d, n, option_type = "call") {
+    .Call(`_AsianOption_price_geometric_asian_cpp`, S0, K, r, u, d, lambda, v_u, v_d, n, option_type)
+}
+
+price_geometric_asian_transient_cpp <- function(S0, K, r, u, d, lambda_P, lambda_T, alpha, psi, volumes, option_type = "call") {
+    .Call(`_AsianOption_price_geometric_asian_transient_cpp`, S0, K, r, u, d, lambda_P, lambda_T, alpha, psi, volumes, option_type)
+}
+
 hjb_arithmetic_value_cpp <- function(S0, K, T, N, sigma, r_cont, kappa, lambda_bar_T, lambda_bar_P, k_A, k_B, psi_cost, eta_vec, p, I0, control_set, n_logS, n_I, n_Y, payoff_sign, store_policy = FALSE) {
     .Call(`_AsianOption_hjb_arithmetic_value_cpp`, S0, K, T, N, sigma, r_cont, kappa, lambda_bar_T, lambda_bar_P, k_A, k_B, psi_cost, eta_vec, p, I0, control_set, n_logS, n_I, n_Y, payoff_sign, store_policy)
 }

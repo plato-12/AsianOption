@@ -61,8 +61,7 @@
 #' a control variate, which typically reduces the standard error substantially.
 #'
 #' @references
-#' Tiwari, P., & Majumdar, S. (2025). Asian option valuation under price impact.
-#' \emph{arXiv preprint}. \doi{10.48550/arXiv.2512.07154}
+#' Section 3.2.1 of "Asian option valuation under price impact"
 #'
 #' @seealso \code{\link{price_geometric_asian_diffusion}} for the geometric
 #'   Asian closed-form in the same diffusion limit.
@@ -108,7 +107,7 @@ price_arithmetic_asian_diffusion <- function(S0, K, r, sigma, T,
   if (n_sims < 1) stop("n_sims must be at least 1")
 
   dt <- T / n_steps
-  t_grid <- seq(0, T - dt, length.out = n_steps)
+  t_grid <- seq(0, T - dt, length.out = n_steps)  # left endpoints [0, dt, ..., T-dt]
 
   if (is.function(eta)) {
     eta_values <- eta(t_grid)

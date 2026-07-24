@@ -44,8 +44,7 @@
 #'   - d2 = d1 - sigma_G
 #'
 #' @references
-#' Tiwari, P., & Majumdar, S. (2025). Asian option valuation under price impact.
-#' \emph{arXiv preprint}. \doi{10.48550/arXiv.2512.07154}
+#' Section 3.2.2 of "Asian option valuation under price impact"
 #'
 #' @examples
 #' # Example 1: Constant eta, no correlation
