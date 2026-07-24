@@ -1,6 +1,0 @@
-name	user	system	elapsed
-AsianOption-package	0.001	0.000	0.000	
-price_arithmetic_asian_diffusion	0.091	0.001	0.092	
-price_geometric_asian_diffusion	0	0	0	
-price_kemna_vorst_arithmetic	0.009	0.001	0.009	
-price_kemna_vorst_geometric	0	0	0	
