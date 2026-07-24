@@ -8,7 +8,7 @@ src/*.so
 src/*.dll
 /doc/
 /Meta/
-..Rcheck/
+*.Rcheck/
 *.tar.gz
 CLAUDE.md
 transient_impact_theory.md
