@@ -17,8 +17,10 @@ package provides three complementary pricing approaches:
 2. **Exogenous diffusion** — passive trading regime where the impact
    state evolves as an exogenous Ornstein-Uhlenbeck process. Closed-form
    for geometric Asians; Monte Carlo for arithmetic Asians.
-3. **Endogenous HJB** — strategic trading regime solved via a tree-based
-   Bellman recursion, producing indifference bid and ask prices.
+3. **Endogenous utility-indifference (Bellman scheme)** — a dealer with
+   constant absolute risk aversion hedges the option in a market with price
+   impact, running a self-financing cash account. Solving the dealer's
+   problem with and without the option gives reservation bid and ask quotes.
 
 ## Installation
 
@@ -65,27 +67,36 @@ price_arithmetic_asian_diffusion(
 )
 ```
 
-### Endogenous HJB (Strategic Trading)
+### Endogenous Utility-Indifference (Dealer Hedging under Impact)
 
 ``` r
-# Geometric Asian — bid/ask via Bellman scheme (Algorithm 1)
-price_geometric_asian_hjb(
-  S0 = 100, K = 100, Time = 1, N = 30,
-  sigma = 0.2, r = 0.05, kappa = 1,
-  lambda_bar_T = 0.05, lambda_bar_P = 0.025,
-  k_A = 0.5, k_B = 0.5, psi_cost = 1.0,
-  eta = 0.5, rho = 0, I0 = 0
+# Geometric Asian — reservation bid/ask for a CARA dealer
+res <- price_geometric_asian_indiff(
+  S0 = 100, K = 100, T = 1, N = 25,
+  sigma = 0.2, r_cont = 0.05,
+  gamma = 0.05,                                # dealer risk aversion
+  lambda_bar_T = 0.05, lambda_bar_P = 0.025,   # execution impact
+  k_A = 0.05, k_B = 0.05, psi_cost = 1,        # temporary execution cost
+  kappa_J = 1, Q_bar = 2, nu_bar = 4
 )
+summary(res)          # quotes plus the numerical diagnostics
 
-# Arithmetic Asian — bid/ask via Bellman scheme
-price_arithmetic_asian_hjb(
-  S0 = 100, K = 100, Time = 1, N = 30,
-  sigma = 0.2, r = 0.05, kappa = 1,
-  lambda_bar_T = 0.05, lambda_bar_P = 0.025,
-  k_A = 0.5, k_B = 0.5, psi_cost = 1.0,
-  eta = 0.5, rho = 0, I0 = 0
+# Arithmetic Asian — same interface
+price_arithmetic_asian_indiff(
+  S0 = 100, K = 100, T = 1, N = 25, sigma = 0.2, r_cont = 0.05
 )
 ```
+
+The execution price is `S + lambda_bar_P * Q + lambda_bar_T * J`, where `Q` is
+the dealer's inventory and `J` its transient impact state. This is a **change
+of meaning** from the legacy `*_hjb()` functions, where `lambda_bar_*`
+appeared in the drift of `S`; the drift loading is now `lambda_I`. See
+`NEWS.md`.
+
+Two practical notes. Leave `n_logS = NULL` so the engine aligns the log-price
+grid with one shock — an unaligned grid inflates the effective volatility. And
+check `inst/scripts/indiff_convergence.R` before quoting a spread, which is
+more grid-sensitive than the price level.
 
 ## Main Functions
 
@@ -93,8 +104,17 @@ price_arithmetic_asian_hjb(
 - `price_kemna_vorst_arithmetic()`: Kemna-Vorst arithmetic Asian (frictionless)
 - `price_geometric_asian_diffusion()`: Exogenous diffusion geometric Asian (closed-form)
 - `price_arithmetic_asian_diffusion()`: Exogenous diffusion arithmetic Asian (Monte Carlo)
-- `price_geometric_asian_hjb()`: Endogenous HJB geometric Asian (Bellman scheme)
-- `price_arithmetic_asian_hjb()`: Endogenous HJB arithmetic Asian (Bellman scheme)
+- `price_geometric_asian_indiff()`: Utility-indifference geometric Asian bid/ask
+- `price_arithmetic_asian_indiff()`: Utility-indifference arithmetic Asian bid/ask
+
+### Legacy (pre-revision) interface
+
+`price_geometric_asian_hjb()` and `price_arithmetic_asian_hjb()` implement the
+earlier cost-minimisation formulation. They are **deprecated** — kept
+unchanged so the arXiv v2 numbers remain reproducible, to be made internal in
+0.4.0 and removed in 0.5.0. New work should use the `*_indiff()` functions,
+which are self-financing, give the bid and ask an explicit economic meaning,
+and recover the frictionless benchmark as impact goes to zero.
 
 ## Citation
 

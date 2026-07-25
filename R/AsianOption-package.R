@@ -11,7 +11,22 @@
 #'   \item \code{\link{compute_p_adj}}: Compute adjusted risk-neutral probability
 #'   \item \code{\link{compute_adjusted_factors}}: Compute modified up/down factors
 #'   \item \code{\link{check_no_arbitrage}}: Validate no-arbitrage condition
+#'   \item \code{\link{price_geometric_asian_indiff}},
+#'     \code{\link{price_arithmetic_asian_indiff}}: utility-indifference bid and
+#'     ask quotes for a dealer hedging under price impact
 #' }
+#'
+#' @section Endogenous Regime:
+#' The endogenous module solves the self-financing exponential-utility
+#' indifference problem of a dealer with constant absolute risk aversion. The
+#' dealer trades the underlying at an execution price
+#' \eqn{S + \bar\lambda_P Q + \bar\lambda_T J} that depends on inventory and on
+#' its own transient impact, pays a convex temporary cost, and cannot move the
+#' Asian fixing. Solving the problem with and without the option gives
+#' reservation quotes. The earlier cost-minimisation interface
+#' (\code{price_*_asian_hjb}) is deprecated; see \code{NEWS.md}, which also
+#' documents the change of meaning of \code{lambda_bar_T} and
+#' \code{lambda_bar_P}.
 #'
 #' @section Price Impact Mechanism:
 #' When market makers hedge options, their trading volume causes price movements
@@ -82,5 +97,6 @@
 #' @useDynLib AsianOption, .registration = TRUE
 #' @importFrom Rcpp sourceCpp
 #' @importFrom stats pnorm
+#' @importFrom graphics par matplot abline legend
 ## usethis namespace: end
 NULL

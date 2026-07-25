@@ -61,6 +61,90 @@ hjb_geometric_quotes_cpp <- function(S0, K, T, N, sigma, r_cont, kappa, lambda_b
     .Call(`_AsianOption_hjb_geometric_quotes_cpp`, S0, K, T, N, sigma, r_cont, kappa, lambda_bar_T, lambda_bar_P, k_A, k_B, psi_cost, eta_vec, p, I0, control_set, n_logS, n_I, n_Y)
 }
 
+#' Branch probabilities of the four-point shock scheme
+#'
+#' @param rho Correlation between the price and impact shocks, in [-1, 1].
+#' @return Numeric vector of length 4 holding p_(+,+), p_(+,-), p_(-,+), p_(-,-).
+#' @keywords internal
+indiff_branch_probs_cpp <- function(rho) {
+    .Call(`_AsianOption_indiff_branch_probs_cpp`, rho)
+}
+
+#' Cash-discount helpers of the self-financing recursion
+#'
+#' @param r_cont Continuously compounded rate.
+#' @param T_mat Maturity.
+#' @param N Number of time steps.
+#' @return List with \code{dt}, \code{delta_r}, \code{beta} (length N+1) and
+#'   \code{beta_delta} (length N).
+#' @keywords internal
+indiff_discount_helpers_cpp <- function(r_cont, T_mat, N) {
+    .Call(`_AsianOption_indiff_discount_helpers_cpp`, r_cont, T_mat, N)
+}
+
+#' Terminal Asian payoff used by the indifference engine
+#'
+#' @param a Running accumulator value.
+#' @param S0 Initial price.
+#' @param K Strike.
+#' @param T_mat Maturity.
+#' @param asian_type 0 = arithmetic, 1 = geometric.
+#' @param option_type 0 = call, 1 = put.
+#' @param phi_cap Payoff cap; values <= 0 mean no cap.
+#' @return The (possibly capped) payoff.
+#' @keywords internal
+indiff_payoff_cpp <- function(a, S0, K, T_mat, asian_type, option_type, phi_cap) {
+    .Call(`_AsianOption_indiff_payoff_cpp`, a, S0, K, T_mat, asian_type, option_type, phi_cap)
+}
+
+#' Report whether the package was compiled with OpenMP support
+#'
+#' @return \code{TRUE} when OpenMP is available.
+#' @keywords internal
+indiff_has_openmp_cpp <- function() {
+    .Call(`_AsianOption_indiff_has_openmp_cpp`)
+}
+
+#' Utility-indifference Bellman engine (single theta)
+#'
+#' Solves the CARA dealer problem of design.md Section 2 for one value of
+#' \code{theta} and returns the value function at the initial state.
+#'
+#' @param S0,K,T_mat,N Contract and time-grid parameters.
+#' @param mu_vec Length-N vector of drifts.
+#' @param sigma,r_cont Volatility and continuously compounded rate.
+#' @param lambda_I,kappa_I Exogenous impact loading and mean-reversion rate.
+#' @param eta_vec Length-N vector of impact noise amplitudes.
+#' @param rho Shock correlation.
+#' @param lambda_bar_T,lambda_bar_P,kappa_J Dealer execution-impact parameters.
+#' @param k_A,k_B,psi_cost Temporary execution cost parameters.
+#' @param gamma_ra Absolute risk aversion.
+#' @param Gamma_Q,Gamma_J Terminal liquidation penalties.
+#' @param Q_bar Inventory bound.
+#' @param phi_cap Payoff cap; values <= 0 mean no cap.
+#' @param n_opt Option notional.
+#' @param I0,Q0,J0 Initial exogenous impact, inventory and dealer impact state.
+#' @param control_set Admissible trading rates; must contain 0.
+#' @param n_logS,n_I,n_Q,n_J,n_R Grid sizes. \code{n_logS <= 0} asks the engine
+#'   to size the log-price grid so that one shock spans exactly one cell.
+#' @param asian_type 0 = arithmetic, 1 = geometric.
+#' @param option_type 0 = call, 1 = put.
+#' @param theta -1 (long), 0 (baseline) or +1 (short).
+#' @param accum_rule 0 = left-endpoint, 1 = trapezoidal accumulator quadrature.
+#' @param accum_sd Accumulator grid half-width in standard deviations of the
+#'   running average; capped by the reachable-set bound.
+#' @param grid_drift 1 = let the log-price grid track the deterministic drift.
+#' @param store_policy Whether to return optimal-policy paths.
+#' @param n_threads OpenMP threads; 0 or less uses the default.
+#' @param engine_mode 0 = cached path, 1 = reference path.
+#' @param verbose Whether to print progress.
+#' @return A list with the value at the initial state, the grids, clamp
+#'   diagnostics and (optionally) forward policy paths.
+#' @keywords internal
+indiff_bellman_engine_cpp <- function(S0, K, T_mat, N, mu_vec, sigma, r_cont, lambda_I, kappa_I, eta_vec, rho, lambda_bar_T, lambda_bar_P, kappa_J, k_A, k_B, psi_cost, gamma_ra, Gamma_Q, Gamma_J, Q_bar, phi_cap, n_opt, I0, Q0, J0, control_set, n_logS, n_I, n_Q, n_J, n_R, asian_type, option_type, theta, accum_rule, accum_sd, grid_drift, store_policy, n_threads, engine_mode, verbose) {
+    .Call(`_AsianOption_indiff_bellman_engine_cpp`, S0, K, T_mat, N, mu_vec, sigma, r_cont, lambda_I, kappa_I, eta_vec, rho, lambda_bar_T, lambda_bar_P, kappa_J, k_A, k_B, psi_cost, gamma_ra, Gamma_Q, Gamma_J, Q_bar, phi_cap, n_opt, I0, Q0, J0, control_set, n_logS, n_I, n_Q, n_J, n_R, asian_type, option_type, theta, accum_rule, accum_sd, grid_drift, store_policy, n_threads, engine_mode, verbose)
+}
+
 price_kemna_vorst_arithmetic_cpp <- function(S0, K, r, sigma, T0, T_mat, n, M, option_type = "call", use_control_variate = TRUE, seed = 0L) {
     .Call(`_AsianOption_price_kemna_vorst_arithmetic_cpp`, S0, K, r, sigma, T0, T_mat, n, M, option_type, use_control_variate, seed)
 }

@@ -16,3 +16,5 @@
 ^HJB_USAGE_GUIDE\.md$
 ^.*\.tex$
 ^examples$
+^design\.md$
+^IMPLEMENTATION_NOTES\.md$

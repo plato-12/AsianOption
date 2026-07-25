@@ -1,3 +1,21 @@
+# Environment used to emit the deprecation notice for the legacy endogenous
+# module once per session rather than on every call.
+.hjb_deprecation_state <- new.env(parent = emptyenv())
+
+.warn_hjb_deprecated <- function(new_fun) {
+  if (isTRUE(.hjb_deprecation_state$warned)) return(invisible(NULL))
+  .hjb_deprecation_state$warned <- TRUE
+  warning(paste0(
+    "The endogenous HJB module is deprecated and will be made internal in ",
+    "0.4.0 and removed in 0.5.0. Use ", new_fun, "() instead, which solves ",
+    "the self-financing utility-indifference problem. Note that ",
+    "lambda_bar_T and lambda_bar_P change meaning in the new interface: they ",
+    "are the dealer's own execution-impact coefficients, and the drift ",
+    "loading is now lambda_I. See NEWS.md."
+  ), call. = FALSE)
+  invisible(NULL)
+}
+
 #' Price Arithmetic Asian Option via HJB Bellman Scheme (Endogenous Impact)
 #'
 #' Computes bid and ask prices for an arithmetic Asian option under
@@ -38,6 +56,8 @@ price_arithmetic_asian_hjb <- function(
     option_type = "call",
     validate = TRUE
 ) {
+
+  .warn_hjb_deprecated("price_arithmetic_asian_indiff")
 
   if (validate) {
     validate_hjb_inputs(
@@ -155,6 +175,8 @@ price_geometric_asian_hjb <- function(
     option_type = "call",
     validate = TRUE
 ) {
+
+  .warn_hjb_deprecated("price_geometric_asian_indiff")
 
   if (validate) {
     validate_hjb_inputs(
