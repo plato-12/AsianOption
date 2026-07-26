@@ -1,7 +1,6 @@
 // Utility-indifference Bellman engine for Asian options under price impact.
 //
-// Implements the discrete CARA dealer problem of design.md Section 2, which is
-// the frozen reference for this file.  State is (s, i, q, j, a):
+// Implements the discrete CARA dealer problem. State is (s, i, q, j, a):
 //
 //   s'_xi   = s * exp[(mu(t_m) + lambda_I*i - sigma^2/2)*dt + sigma*sqrt(dt)*xi]
 //   i'_zeta = i - kappa_I*i*dt + eta(t_m)*sqrt(dt)*zeta

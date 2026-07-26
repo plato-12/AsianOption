@@ -43,7 +43,9 @@ inline double indiff_zeta_sign(int b) { return (b % 2 == 0) ? 1.0 : -1.0; }
 // as the legacy engine: a = int (S_u / S0) du for the arithmetic case and
 // a = int (log S_u - log S0) du for the geometric case.
 // asian_type: 0 = arithmetic, 1 = geometric.  option_type: 0 = call, 1 = put.
-// phi_cap <= 0 means "no cap" (see flag F1 in design.md).
+// phi_cap <= 0 means "no cap"
+// Under GBM, CARA utility of Q_T S_T − θΦ has
+// infinite exponential moments in continuous state space.
 inline double indiff_payoff(double a, double S0, double K, double T,
                             int asian_type, int option_type, double phi_cap) {
   double avg = (asian_type == 0) ? (S0 * a / T) : (S0 * std::exp(a / T));

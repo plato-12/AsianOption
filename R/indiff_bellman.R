@@ -553,6 +553,15 @@ plot.indiff_asian <- function(x, which = c("all", "nu", "Q", "J"), ...) {
                        mar = c(4, 4, 2, 1))
   on.exit(graphics::par(old), add = TRUE)
 
+  # lty/col are given plot-appropriate defaults but may be overridden via ...;
+  # pulling them out avoids "formal argument matched by multiple actual
+  # arguments" and keeps the legend consistent with whatever was used to plot.
+  dots <- list(...)
+  lty <- if (!is.null(dots$lty)) dots$lty else c(1, 2)
+  col <- if (!is.null(dots$col)) dots$col else c(1, 2)
+  dots$lty <- NULL
+  dots$col <- NULL
+
   for (p in panels) {
     if (p == "nu") {
       tt <- seq(0, x$params$T - dt, length.out = N)
@@ -567,11 +576,12 @@ plot.indiff_asian <- function(x, which = c("all", "nu", "Q", "J"), ...) {
       m <- cbind(seller = x$J_path_seller, buyer = x$J_path_buyer)
       ylab <- "dealer impact J"
     }
-    graphics::matplot(tt, m, type = "l", lty = c(1, 2), col = c(1, 2),
-                      xlab = "t", ylab = ylab, ...)
+    do.call(graphics::matplot,
+            c(list(tt, m, type = "l", lty = lty, col = col,
+                   xlab = "t", ylab = ylab), dots))
     graphics::abline(h = 0, col = "grey70", lty = 3)
     graphics::legend("topright", legend = c("short (ask)", "long (bid)"),
-                     lty = c(1, 2), col = c(1, 2), bty = "n", cex = 0.8)
+                     lty = lty, col = col, bty = "n", cex = 0.8)
   }
   invisible(x)
 }
