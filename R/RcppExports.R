@@ -97,12 +97,15 @@ indiff_payoff_cpp <- function(a, S0, K, T_mat, asian_type, option_type, phi_cap)
     .Call(`_AsianOption_indiff_payoff_cpp`, a, S0, K, T_mat, asian_type, option_type, phi_cap)
 }
 
-#' Report whether the package was compiled with OpenMP support
+#' Report the RcppParallel backend used by the indifference engine
 #'
-#' @return \code{TRUE} when OpenMP is available.
+#' @return \code{"tbb"} when the Intel TBB backend is active, or
+#'   \code{"tinythread"} when RcppParallel falls back to its portable
+#'   thread pool. \code{"serial"} is reported inside a \code{fork()}ed child
+#'   process, where TBB cannot be used and the engine runs single-threaded.
 #' @keywords internal
-indiff_has_openmp_cpp <- function() {
-    .Call(`_AsianOption_indiff_has_openmp_cpp`)
+indiff_parallel_backend_cpp <- function() {
+    .Call(`_AsianOption_indiff_parallel_backend_cpp`)
 }
 
 #' Utility-indifference Bellman engine (single theta)
@@ -135,7 +138,8 @@ indiff_has_openmp_cpp <- function() {
 #'   running average; capped by the reachable-set bound.
 #' @param grid_drift 1 = let the log-price grid track the deterministic drift.
 #' @param store_policy Whether to return optimal-policy paths.
-#' @param n_threads OpenMP threads; 0 or less uses the default.
+#' @param n_threads Worker threads for the cached path; 0 or less lets
+#'   RcppParallel choose, and 1 runs the backward sweep serially.
 #' @param engine_mode 0 = cached path, 1 = reference path.
 #' @param verbose Whether to print progress.
 #' @return A list with the value at the initial state, the grids, clamp

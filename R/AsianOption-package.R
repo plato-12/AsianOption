@@ -96,6 +96,7 @@
 ## usethis namespace: start
 #' @useDynLib AsianOption, .registration = TRUE
 #' @importFrom Rcpp sourceCpp
+#' @importFrom RcppParallel defaultNumThreads
 #' @importFrom stats pnorm
 #' @importFrom graphics par matplot abline legend
 ## usethis namespace: end

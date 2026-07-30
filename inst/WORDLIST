@@ -17,6 +17,8 @@ indifference
 accumulator
 discretisation
 discretises
-OpenMP
+RcppParallel
+TBB
+tinythread
 quadrature
 reparameterised

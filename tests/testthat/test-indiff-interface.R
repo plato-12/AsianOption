@@ -144,8 +144,11 @@ test_that("the returned object has the documented S3 structure", {
 
   d <- res$diagnostics
   expect_true(all(c("runtime_sec", "clamp_fraction", "grid_aligned",
-                    "collapsed_I", "openmp", "grids") %in% names(d)))
-  expect_true(is.logical(d$openmp))
+                    "collapsed_I", "parallel_backend", "n_threads",
+                    "grids") %in% names(d)))
+  expect_true(is.character(d$parallel_backend))
+  expect_true(d$parallel_backend %in% c("tbb", "tinythread", "serial"))
+  expect_true(is.numeric(d$n_threads) && d$n_threads >= 1)
 })
 
 test_that("the arithmetic wrapper reports its own type", {

@@ -44,6 +44,19 @@
   c(-rev(pos), 0, pos)
 }
 
+# Thread count the engine will actually use, for reporting only.  Mirrors
+# RcppParallel's own resolution order: an explicit n_threads wins, then
+# RCPP_PARALLEL_NUM_THREADS (which is what setThreadOptions() sets), then the
+# RcppParallel default.
+.indiff_resolve_threads <- function(n_threads) {
+  if (isTRUE(n_threads > 0)) return(as.integer(n_threads))
+  env <- suppressWarnings(
+    as.integer(Sys.getenv("RCPP_PARALLEL_NUM_THREADS", unset = ""))
+  )
+  if (!is.na(env) && env > 0) return(env)
+  defaultNumThreads()
+}
+
 .indiff_core <- function(asian_type,
                          S0, K, T, N, mu, sigma, r_cont,
                          lambda_I, kappa_I, eta, rho,
@@ -179,7 +192,8 @@
       margin  = res0$margin,
       I_bound = res0$I_bound,
       J_bound = res0$J_bound,
-      openmp  = indiff_has_openmp_cpp(),
+      parallel_backend = indiff_parallel_backend_cpp(),
+      n_threads = .indiff_resolve_threads(n_threads),
       grids = list(logS = res0$logS_grid, logS_shift = res0$logS_shift,
                    I = res0$I_grid, Q = res0$Q_grid,
                    J = res0$J_grid, R = res0$R_grid)
@@ -319,8 +333,9 @@
 #'   deterministic drift so the drift is never interpolated.
 #' @param store_policy If \code{TRUE}, return optimal trading-rate and state
 #'   paths along the zero-shock trajectory.
-#' @param n_threads OpenMP threads; 0 uses the default. Results do not depend
-#'   on this value.
+#' @param n_threads Number of RcppParallel worker threads used by the backward
+#'   sweep; 0 (default) leaves the choice to RcppParallel, and 1 forces a
+#'   serial sweep. Results do not depend on this value.
 #' @param engine_mode \code{"cached"} (default) or \code{"reference"}. The
 #'   reference path is a slow, unoptimised transcription of the recursion kept
 #'   as a test oracle.
@@ -505,8 +520,8 @@ summary.indiff_asian <- function(object, ...) {
   cat("\nDiagnostics:\n")
   cat(sprintf("  Runtime:              %.2f s (3 value functions)\n",
               d$runtime_sec))
-  cat(sprintf("  OpenMP:               %s\n",
-              if (isTRUE(d$openmp)) "yes" else "no (serial)"))
+  cat(sprintf("  Parallel backend:     %s (%d thread(s))\n",
+              d$parallel_backend, d$n_threads))
   cat(sprintf("  Log-price grid:       %s (shock spans %d cell(s))\n",
               if (isTRUE(d$grid_aligned)) "aligned" else "NOT aligned",
               d$shock_cells))

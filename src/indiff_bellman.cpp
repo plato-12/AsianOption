@@ -19,7 +19,8 @@
 //   engine_mode = 1 ("reference")  straight transcription, one 5-linear
 //                                  interpolation per (node, control, branch);
 //   engine_mode = 0 ("cached")     precomputed bracket tables plus a plane-wise
-//                                  partial collapse of the value array.
+//                                  partial collapse of the value array,
+//                                  parallelised over planes with RcppParallel.
 // They perform the same floating-point operations in the same order and agree
 // to a few ulps; tests/testthat/test-indiff-engine.R checks this.
 //
@@ -32,15 +33,17 @@
 //   * the accumulator uses trapezoidal quadrature, whose variance error is
 //     O(dt^2) against O(dt) for the left-endpoint rule (accum_rule).
 
+// RcppParallel.h must precede Rcpp.h: it pulls in system headers that define
+// TRUE/FALSE as macros and undefines them again on the way out, which would
+// otherwise clash with R_ext/Boolean.h.
+#include <RcppParallel.h>
+
 #include "indiff_bellman.h"
 #include <Rcpp.h>
 #include <vector>
 #include <limits>
 #include <cstddef>
-
-#ifdef _OPENMP
-#include <omp.h>
-#endif
+#include <algorithm>
 
 // ---------------------------------------------------------------------------
 // Exported scalar helpers (used by the R-level unit tests)
@@ -106,17 +109,17 @@ double indiff_payoff_cpp(double a, double S0, double K, double T_mat,
   return indiff_payoff(a, S0, K, T_mat, asian_type, option_type, phi_cap);
 }
 
-//' Report whether the package was compiled with OpenMP support
+//' Report the RcppParallel backend used by the indifference engine
 //'
-//' @return \code{TRUE} when OpenMP is available.
+//' @return \code{"tbb"} when the Intel TBB backend is active, or
+//'   \code{"tinythread"} when RcppParallel falls back to its portable
+//'   thread pool. \code{"serial"} is reported inside a \code{fork()}ed child
+//'   process, where TBB cannot be used and the engine runs single-threaded.
 //' @keywords internal
 // [[Rcpp::export]]
-bool indiff_has_openmp_cpp() {
-#ifdef _OPENMP
-  return true;
-#else
-  return false;
-#endif
+std::string indiff_parallel_backend_cpp() {
+  if (RcppParallel::isProcessForkedChild()) return "serial";
+  return RcppParallel::internal::backendToString(RcppParallel::internal::backend());
 }
 
 // ---------------------------------------------------------------------------
@@ -556,18 +559,24 @@ static void build_step_tables(StepTables& tb, const IndiffSpec& S,
   }
 }
 
-// One backward step, cached path.
-static void backward_step_cached(std::vector<double>& V_curr,
-                                 const std::vector<double>& V_next,
-                                 std::vector<double>* policy,
-                                 const IndiffSpec& S, const IndiffGrids& G,
-                                 const StepTables& tb,
-                                 const std::vector<double>& controls,
-                                 int c_zero, double cash) {
+// Cached backward step over a contiguous range of (log-price, impact) planes.
+//
+// Plane pl = is*n_I + ii writes only V_curr[idx(is, ii, ., ., .)] and reads
+// only V_next and the step tables, so the planes are independent: any partition
+// of [0, n_planes) into ranges reproduces the serial result bit for bit.  The
+// scratch buffers are local to the call, hence private to whichever thread runs
+// the range.
+static void backward_planes_cached(size_t pl_begin, size_t pl_end,
+                                   std::vector<double>& V_curr,
+                                   const std::vector<double>& V_next,
+                                   std::vector<double>* policy,
+                                   const IndiffSpec& S, const IndiffGrids& G,
+                                   const StepTables& tb,
+                                   const std::vector<double>& controls,
+                                   int c_zero, double cash) {
   const int nc = static_cast<int>(controls.size());
   const size_t blk = G.blk();
   const size_t nQJ = static_cast<size_t>(G.n_Q) * G.n_J;
-  const int n_planes = G.n_logS * G.n_I;
 
   double p[4];
   indiff_branch_probs(S.rho, p);
@@ -576,19 +585,14 @@ static void backward_step_cached(std::vector<double>& V_curr,
   double* Vc = V_curr.data();
   double* Pol = (policy != NULL) ? policy->data() : NULL;
 
-#ifdef _OPENMP
-#pragma omp parallel
-#endif
   {
     std::vector<double> Pbuf(4 * blk);
     std::vector<double> Qbuf(4 * blk);
     std::vector<double> gterm(nQJ * nc);
     std::vector<char> price_ok(nQJ);
 
-#ifdef _OPENMP
-#pragma omp for schedule(static)
-#endif
-    for (int pl = 0; pl < n_planes; pl++) {
+    for (size_t pl_u = pl_begin; pl_u < pl_end; pl_u++) {
+      const int pl = static_cast<int>(pl_u);
       const int is = pl / G.n_I;
       const int ii = pl - is * G.n_I;
       const double s_val = tb.Sval[is];
@@ -708,6 +712,73 @@ static void backward_step_cached(std::vector<double>& V_curr,
   }
 }
 
+// RcppParallel worker wrapping the plane range above.  It touches no R data
+// structures and calls no R API, so it is safe to run off the main thread; the
+// progress report and interrupt check stay in the caller's loop.
+namespace {
+
+struct BackwardStepWorker : public RcppParallel::Worker {
+  std::vector<double>& V_curr;
+  const std::vector<double>& V_next;
+  std::vector<double>* policy;
+  const IndiffSpec& S;
+  const IndiffGrids& G;
+  const StepTables& tb;
+  const std::vector<double>& controls;
+  int c_zero;
+  double cash;
+
+  BackwardStepWorker(std::vector<double>& V_curr_,
+                     const std::vector<double>& V_next_,
+                     std::vector<double>* policy_,
+                     const IndiffSpec& S_, const IndiffGrids& G_,
+                     const StepTables& tb_,
+                     const std::vector<double>& controls_,
+                     int c_zero_, double cash_)
+    : V_curr(V_curr_), V_next(V_next_), policy(policy_), S(S_), G(G_),
+      tb(tb_), controls(controls_), c_zero(c_zero_), cash(cash_) {}
+
+  void operator()(std::size_t begin, std::size_t end) {
+    backward_planes_cached(begin, end, V_curr, V_next, policy, S, G, tb,
+                           controls, c_zero, cash);
+  }
+};
+
+}  // namespace
+
+// One backward step, cached path, parallelised over (log-price, impact) planes.
+//
+// n_threads <= 0 leaves the thread count to RcppParallel (its default, or
+// RCPP_PARALLEL_NUM_THREADS / setThreadOptions()).  TBB does not survive
+// fork(), so a forked child runs the whole range serially.
+static void backward_step_cached(std::vector<double>& V_curr,
+                                 const std::vector<double>& V_next,
+                                 std::vector<double>* policy,
+                                 const IndiffSpec& S, const IndiffGrids& G,
+                                 const StepTables& tb,
+                                 const std::vector<double>& controls,
+                                 int c_zero, double cash, int n_threads) {
+  const size_t n_planes = static_cast<size_t>(G.n_logS) * G.n_I;
+
+  if (n_threads == 1 || n_planes < 2 || RcppParallel::isProcessForkedChild()) {
+    backward_planes_cached(0, n_planes, V_curr, V_next, policy, S, G, tb,
+                           controls, c_zero, cash);
+    return;
+  }
+
+  // Each worker call allocates ~8*blk doubles of scratch, so hand out chunks
+  // rather than single planes: aim for a few chunks per thread, which keeps the
+  // allocation amortised while leaving room for load balancing.
+  const int threads = (n_threads > 0) ? n_threads : 8;
+  size_t grain = n_planes / (static_cast<size_t>(threads) * 4);
+  if (grain < 1) grain = 1;
+
+  BackwardStepWorker worker(V_curr, V_next, policy, S, G, tb, controls,
+                            c_zero, cash);
+  RcppParallel::parallelFor(0, n_planes, worker, grain,
+                            (n_threads > 0) ? n_threads : -1);
+}
+
 // One backward step, reference path: no caching, one 5-linear interpolation per
 // (node, control, branch).  Serial by construction; used as the test oracle.
 static void backward_step_reference(std::vector<double>& V_curr,
@@ -825,7 +896,8 @@ static void backward_step_reference(std::vector<double>& V_curr,
 //'   running average; capped by the reachable-set bound.
 //' @param grid_drift 1 = let the log-price grid track the deterministic drift.
 //' @param store_policy Whether to return optimal-policy paths.
-//' @param n_threads OpenMP threads; 0 or less uses the default.
+//' @param n_threads Worker threads for the cached path; 0 or less lets
+//'   RcppParallel choose, and 1 runs the backward sweep serially.
 //' @param engine_mode 0 = cached path, 1 = reference path.
 //' @param verbose Whether to print progress.
 //' @return A list with the value at the initial state, the grids, clamp
@@ -912,12 +984,6 @@ Rcpp::List indiff_bellman_engine_cpp(
   std::vector<double> policy;
   if (store_policy) policy.assign(gs, 0.0);
 
-#ifdef _OPENMP
-  if (n_threads > 0) omp_set_num_threads(n_threads);
-#else
-  (void)n_threads;
-#endif
-
   const double dt = T_mat / N;
   const double sqdt = std::sqrt(dt);
   const double delta_r = indiff_delta_r(r_cont, dt);
@@ -959,7 +1025,7 @@ Rcpp::List indiff_bellman_engine_cpp(
     } else {
       build_step_tables(tb, S, G, controls, m, eta[m], dt, sqdt, cc);
       backward_step_cached(V_curr, V_next, store_policy ? &policy : NULL,
-                           S, G, tb, controls, c_zero, cash);
+                           S, G, tb, controls, c_zero, cash, n_threads);
     }
 
     if (store_policy) {

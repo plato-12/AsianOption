@@ -136,8 +136,9 @@ deterministic drift so the drift is never interpolated.}
 \item{store_policy}{If \code{TRUE}, return optimal trading-rate and state
 paths along the zero-shock trajectory.}
 
-\item{n_threads}{OpenMP threads; 0 uses the default. Results do not depend
-on this value.}
+\item{n_threads}{Number of RcppParallel worker threads used by the backward
+sweep; 0 (default) leaves the choice to RcppParallel, and 1 forces a
+serial sweep. Results do not depend on this value.}
 
 \item{engine_mode}{\code{"cached"} (default) or \code{"reference"}. The
 reference path is a slow, unoptimised transcription of the recursion kept

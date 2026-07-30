@@ -21,7 +21,9 @@ benchmark (see below).
 Also new in this module: put payoffs are implemented (the legacy module warned
 and returned call prices), an optional payoff cap `phi_cap`, an option notional
 `n_options`, `print`, `summary` and `plot` methods for the new
-`"indiff_asian"` class, and optional OpenMP parallelism.
+`"indiff_asian"` class, and a backward sweep parallelised over the price and
+impact grid planes with RcppParallel (thread count via `n_threads`; the result
+does not depend on it).
 
 ## Breaking change in the meaning of two arguments
 

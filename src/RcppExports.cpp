@@ -407,13 +407,13 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// indiff_has_openmp_cpp
-bool indiff_has_openmp_cpp();
-RcppExport SEXP _AsianOption_indiff_has_openmp_cpp() {
+// indiff_parallel_backend_cpp
+std::string indiff_parallel_backend_cpp();
+RcppExport SEXP _AsianOption_indiff_parallel_backend_cpp() {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    rcpp_result_gen = Rcpp::wrap(indiff_has_openmp_cpp());
+    rcpp_result_gen = Rcpp::wrap(indiff_parallel_backend_cpp());
     return rcpp_result_gen;
 END_RCPP
 }
@@ -530,7 +530,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_AsianOption_indiff_branch_probs_cpp", (DL_FUNC) &_AsianOption_indiff_branch_probs_cpp, 1},
     {"_AsianOption_indiff_discount_helpers_cpp", (DL_FUNC) &_AsianOption_indiff_discount_helpers_cpp, 3},
     {"_AsianOption_indiff_payoff_cpp", (DL_FUNC) &_AsianOption_indiff_payoff_cpp, 7},
-    {"_AsianOption_indiff_has_openmp_cpp", (DL_FUNC) &_AsianOption_indiff_has_openmp_cpp, 0},
+    {"_AsianOption_indiff_parallel_backend_cpp", (DL_FUNC) &_AsianOption_indiff_parallel_backend_cpp, 0},
     {"_AsianOption_indiff_bellman_engine_cpp", (DL_FUNC) &_AsianOption_indiff_bellman_engine_cpp, 42},
     {"_AsianOption_price_kemna_vorst_arithmetic_cpp", (DL_FUNC) &_AsianOption_price_kemna_vorst_arithmetic_cpp, 11},
     {"_AsianOption_price_kemna_vorst_arithmetic_binomial_cpp", (DL_FUNC) &_AsianOption_price_kemna_vorst_arithmetic_binomial_cpp, 10},

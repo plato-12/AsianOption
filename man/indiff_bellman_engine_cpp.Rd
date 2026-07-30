@@ -98,7 +98,8 @@ running average; capped by the reachable-set bound.}
 
 \item{store_policy}{Whether to return optimal-policy paths.}
 
-\item{n_threads}{OpenMP threads; 0 or less uses the default.}
+\item{n_threads}{Worker threads for the cached path; 0 or less lets
+RcppParallel choose, and 1 runs the backward sweep serially.}
 
 \item{engine_mode}{0 = cached path, 1 = reference path.}
 

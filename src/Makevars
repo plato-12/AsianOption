@@ -1,5 +1,5 @@
-## Rcpp flags (using modern Rcpp defaults)
-## OpenMP is optional: the indifference engine falls back to a serial loop
-## when SHLIB_OPENMP_CXXFLAGS is empty (see src/indiff_bellman.cpp).
-PKG_CXXFLAGS = $(SHLIB_OPENMP_CXXFLAGS)
-PKG_LIBS = $(SHLIB_OPENMP_CXXFLAGS)
+## The indifference engine parallelises its backward sweep with RcppParallel
+## (see src/indiff_bellman.cpp).  CxxFlags() supplies the TBB include path and
+## the RCPP_PARALLEL_USE_TBB define; LdFlags() links the bundled TBB runtime.
+PKG_CXXFLAGS = $(shell "${R_HOME}/bin/Rscript" -e "RcppParallel::CxxFlags()")
+PKG_LIBS = $(shell "${R_HOME}/bin/Rscript" -e "RcppParallel::LdFlags()")
