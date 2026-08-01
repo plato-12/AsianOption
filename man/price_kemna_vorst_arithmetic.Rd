@@ -54,13 +54,15 @@ reduction factor. Default is FALSE.}
 }
 \value{
 If \code{return_diagnostics = FALSE}, returns a numeric value (the
-  estimated option price). If \code{return_diagnostics = TRUE}, returns a list with components:
+  estimated option price, as a time-0 present value). If \code{return_diagnostics = TRUE}, returns a list with components:
   \describe{
     \item{price}{Estimated option price}
     \item{std_error}{Standard error of the estimate}
     \item{lower_ci}{Lower 95\% confidence interval}
     \item{upper_ci}{Upper 95\% confidence interval}
-    \item{geometric_price}{Analytical geometric average price (control variate)}
+    \item{geometric_price}{Analytical geometric average price used as the
+      control variate, discounted to time 0 on the same basis as the
+      simulated payoffs}
     \item{correlation}{Correlation between arithmetic and geometric payoffs}
     \item{variance_reduction_factor}{Ratio of variances (with/without control)}
     \item{n_simulations}{Number of Monte Carlo simulations used}

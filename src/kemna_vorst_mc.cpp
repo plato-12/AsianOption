@@ -30,6 +30,10 @@ List price_kemna_vorst_arithmetic_cpp(
              (sigma * std::sqrt(tau / 3.0));
   double d2 = d - sigma_G * std::sqrt(tau);
 
+  // Closed-form geometric leg used as the control variate.  This must be a
+  // PRESENT VALUE, because the simulated payoffs it is combined with below are
+  // discounted; mixing the two conventions shifts the returned price by
+  // (1 - e^{-r tau}) times the geometric price.
   double geometric_price;
   if (option_type == "call") {
     geometric_price = std::exp(d_star) * S0 * R::pnorm(d, 0.0, 1.0, 1, 0) -
@@ -38,6 +42,7 @@ List price_kemna_vorst_arithmetic_cpp(
     geometric_price = K * R::pnorm(-d2, 0.0, 1.0, 1, 0) -
                       std::exp(d_star) * S0 * R::pnorm(-d, 0.0, 1.0, 1, 0);
   }
+  geometric_price *= discount;
 
   NumericVector arithmetic_payoffs(M);
   NumericVector geometric_payoffs(M);

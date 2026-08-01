@@ -25,7 +25,8 @@ non-negative.}
 \item{option_type}{Character. Type of option: "call" (default) or "put".}
 }
 \value{
-Numeric. The analytical price of the geometric average Asian option.
+Numeric. The analytical price of the geometric average Asian option,
+  as a time-0 present value.
 }
 \description{
 Calculates the price of a geometric average Asian call option using the
@@ -40,13 +41,17 @@ For the discrete case with n+1 observations:
 \deqn{G_T = \left(\prod_{i=0}^{n} S(T_i)\right)^{1/(n+1)}}
 
 The closed-form solution for a call option is:
-\deqn{C = S_0 e^{d^*} N(d) - K N(d - \sigma_G\sqrt{T-T_0})}
+\deqn{C = e^{-r(T-T_0)}\left[S_0 e^{d^*} N(d)
+                               - K N(d - \sigma_G\sqrt{T-T_0})\right]}
 
 where:
 \deqn{d^* = \frac{1}{2}(r - \frac{\sigma^2}{6})(T - T_0)}
 \deqn{d = \frac{\log(S_0/K) + \frac{1}{2}(r + \frac{\sigma^2}{6})(T-T_0)}{\sigma\sqrt{(T-T_0)/3}}}
 
 and \eqn{N(\cdot)} is the cumulative standard normal distribution function.
+The bracketed term is the undiscounted expectation
+\eqn{E[(G_T - K)^+]}; the function returns its present value, consistent
+with every other pricing function in the package.
 }
 \examples{
 price_kemna_vorst_geometric(

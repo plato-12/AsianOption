@@ -21,16 +21,16 @@ frictionless <- function(fun, ..., k = 1e-4, gamma = 1e-3, N = 25L,
       ...)
 }
 
-# price_kemna_vorst_geometric returns an undiscounted expectation, so the
-# quantity comparable with an indifference price is exp(-r T) times its value.
-kv_geometric_discounted <- function(S0, K, r, sigma, T) {
-  exp(-r * T) * price_kemna_vorst_geometric(S0, K, r, sigma, 0, T)
+# Both the closed form and the indifference quotes are time-0 present values,
+# so they are directly comparable.
+kv_geometric_pv <- function(S0, K, r, sigma, T) {
+  price_kemna_vorst_geometric(S0, K, r, sigma, 0, T)
 }
 
 test_that("zero-friction geometric limit recovers Kemna-Vorst", {
   skip_on_cran()
   res <- frictionless(price_geometric_asian_indiff)
-  target <- kv_geometric_discounted(100, 100, 0.05, 0.2, 1)
+  target <- kv_geometric_pv(100, 100, 0.05, 0.2, 1)
 
   expect_equal(res$ask_price, target, tolerance = 0.05)
   expect_equal(res$bid_price, target, tolerance = 0.05)
@@ -40,7 +40,7 @@ test_that("zero-friction geometric limit recovers Kemna-Vorst", {
 
 test_that("zero-friction geometric limit tightens as the grid refines", {
   skip_on_cran()
-  target <- kv_geometric_discounted(100, 100, 0.05, 0.2, 1)
+  target <- kv_geometric_pv(100, 100, 0.05, 0.2, 1)
   coarse <- frictionless(price_geometric_asian_indiff, n_R = 41L)
   fine   <- frictionless(price_geometric_asian_indiff, n_R = 241L, N = 50L)
 
@@ -223,7 +223,7 @@ test_that("the trapezoidal accumulator beats the left-endpoint rule", {
                k_A = 1e-4, k_B = 1e-4, Gamma_Q = 1e-4, Gamma_J = 1e-4,
                Q_bar = 10, nu_bar = 10,
                n_I = 5L, n_Q = 7L, n_J = 7L, n_R = 121L, n_controls = 7L)
-  target <- kv_geometric_discounted(100, 100, 0.05, 0.2, 1)
+  target <- kv_geometric_pv(100, 100, 0.05, 0.2, 1)
   trap <- do.call(price_geometric_asian_indiff, args)
   left <- do.call(price_geometric_asian_indiff,
                   c(args, list(accum_rule = "left")))
@@ -240,7 +240,7 @@ test_that("an unaligned log-price grid is reported and inflates the price", {
                k_A = 1e-4, k_B = 1e-4, Gamma_Q = 1e-4, Gamma_J = 1e-4,
                Q_bar = 10, nu_bar = 10,
                n_I = 5L, n_Q = 7L, n_J = 7L, n_R = 121L, n_controls = 7L)
-  target <- kv_geometric_discounted(100, 100, 0.05, 0.2, 1)
+  target <- kv_geometric_pv(100, 100, 0.05, 0.2, 1)
   auto <- do.call(price_geometric_asian_indiff, args)
   # 41 nodes cannot be aligned with one shock over the required margin.  An
   # unaligned grid can distort the three value functions enough to trip the

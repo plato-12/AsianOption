@@ -172,6 +172,6 @@ price_geometric_asian_indiff(
 }
 \seealso{
 \code{\link{price_kemna_vorst_geometric}} for the frictionless
-  closed form. Note that function returns an undiscounted expectation, so
-  the comparable quantity is \code{exp(-r * T)} times its value.
+  closed form, which is directly comparable: both are time-0 present
+  values.
 }

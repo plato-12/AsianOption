@@ -15,7 +15,8 @@
 #' @param T_mat Numeric. Maturity time. Must be greater than T0.
 #' @param option_type Character. Type of option: "call" (default) or "put".
 #'
-#' @return Numeric. The analytical price of the geometric average Asian option.
+#' @return Numeric. The analytical price of the geometric average Asian option,
+#'   as a time-0 present value.
 #'
 #' @details
 #' The geometric average at maturity is defined as:
@@ -25,13 +26,17 @@
 #' \deqn{G_T = \left(\prod_{i=0}^{n} S(T_i)\right)^{1/(n+1)}}
 #'
 #' The closed-form solution for a call option is:
-#' \deqn{C = S_0 e^{d^*} N(d) - K N(d - \sigma_G\sqrt{T-T_0})}
+#' \deqn{C = e^{-r(T-T_0)}\left[S_0 e^{d^*} N(d)
+#'                                - K N(d - \sigma_G\sqrt{T-T_0})\right]}
 #'
 #' where:
 #' \deqn{d^* = \frac{1}{2}(r - \frac{\sigma^2}{6})(T - T_0)}
 #' \deqn{d = \frac{\log(S_0/K) + \frac{1}{2}(r + \frac{\sigma^2}{6})(T-T_0)}{\sigma\sqrt{(T-T_0)/3}}}
 #'
 #' and \eqn{N(\cdot)} is the cumulative standard normal distribution function.
+#' The bracketed term is the undiscounted expectation
+#' \eqn{E[(G_T - K)^+]}; the function returns its present value, consistent
+#' with every other pricing function in the package.
 #'
 #' @references
 #' Kemna, A.G.Z. and Vorst, A.C.F. (1990). "A Pricing Method for Options Based
@@ -86,12 +91,15 @@ price_kemna_vorst_geometric <- function(S0, K, r, sigma, T0, T_mat,
   d2 <- d - sigma_G * sqrt(tau)
 
   if (option_type == "call") {
-    price <- exp(d_star) * S0 * pnorm(d) - K * pnorm(d2)
+    payoff <- exp(d_star) * S0 * pnorm(d) - K * pnorm(d2)
   } else {
-    price <- K * pnorm(-d2) - exp(d_star) * S0 * pnorm(-d)
+    payoff <- K * pnorm(-d2) - exp(d_star) * S0 * pnorm(-d)
   }
 
-  return(price)
+  # payoff is the expectation E[(G_T - K)^+] under the risk-neutral measure;
+  # the price is its present value.  The sigma == 0 branch above already
+  # discounts, so both branches now return a time-0 present value.
+  return(exp(-r * tau) * payoff)
 }
 
 price_kemna_vorst_geometric_binomial <- function(S0, K, r, u, d, n,

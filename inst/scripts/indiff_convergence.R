@@ -21,13 +21,9 @@ S0 <- 100; K <- 100; T <- 1; sigma <- 0.2; r <- 0.05
 
 # --- benchmarks -------------------------------------------------------------
 
-# Discounted Kemna-Vorst geometric closed form.  Note that
-# price_kemna_vorst_geometric() returns an UNDISCOUNTED expectation.
-kv_geo <- local({
-  sg <- sigma / sqrt(3); b <- 0.5 * (r - sigma^2 / 6)
-  d1 <- (log(S0 / K) + (b + sg^2 / 2) * T) / (sg * sqrt(T))
-  exp(-r * T) * (S0 * exp(b * T) * pnorm(d1) - K * pnorm(d1 - sg * sqrt(T)))
-})
+# Kemna-Vorst geometric closed form, a time-0 present value like everything
+# else here.
+kv_geo <- price_kemna_vorst_geometric(S0, K, r, sigma, 0, T)
 
 # Exact expected payoff of the DISCRETE model the engine implements, for the
 # geometric case with lambda_I = 0 and no trading.  With

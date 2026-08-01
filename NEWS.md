@@ -1,5 +1,30 @@
 # AsianOption 0.3.0
 
+## Bug fix: Kemna-Vorst benchmarks now return present values
+
+`price_kemna_vorst_geometric()` returned the *undiscounted* expectation
+`E[(G_T - K)^+]` for `sigma > 0` but a discounted value in its `sigma == 0`
+branch, and every other pricing function in the package returns a time-0
+present value. It now discounts in both branches. At the package's own example
+parameters (`S0 = K = 100`, `r = 0.05`, `sigma = 0.2`, `T = 1`) the returned
+value changes from `5.8312` to `5.5468`.
+
+`price_kemna_vorst_arithmetic()` was affected more subtly: its control variate
+added the *undiscounted* analytic geometric price to a correction built from
+*discounted* simulated payoffs, so the result was neither convention. The
+analytic leg is now discounted on the same basis as the payoffs, which shifts
+the estimate by exactly `(1 - e^{-r tau})` times the geometric price and leaves
+the Monte Carlo error untouched. At the same parameters the estimate changes
+from about `6.05` to about `5.77`.
+
+**Impact on users.** Any code comparing these benchmarks with
+`price_*_asian_diffusion()` or `price_*_asian_indiff()` was previously
+comparing quantities in different units, which at `r = 0.05` and `T = 1`
+manifests as a spurious `4.88%` discrepancy. Code that applied its own
+`exp(-r * T)` correction to `price_kemna_vorst_geometric()` should drop it.
+The frictionless limit `price_geometric_asian_diffusion(lambda_T = 0)` now
+agrees with `price_kemna_vorst_geometric()` to machine precision.
+
 ## New: utility-indifference pricing (endogenous regime, rewritten)
 
 `price_arithmetic_asian_indiff()` and `price_geometric_asian_indiff()` replace
