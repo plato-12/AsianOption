@@ -179,16 +179,21 @@ static inline double branch_ce(const double* vb, const double* p,
   if (gamma_ra < 1e-10) {
     return p[0] * vb[0] + p[1] * vb[1] + p[2] * vb[2] + p[3] * vb[3];
   }
+  double w[4];
   double M = -std::numeric_limits<double>::infinity();
   for (int b = 0; b < 4; b++) {
     if (p[b] > 0.0) {
-      double w = -gamma_ra * vb[b];
-      if (w > M) M = w;
+      w[b] = -gamma_ra * vb[b];
+      if (w[b] > M) M = w[b];
     }
   }
+  // The branch (or branches) attaining M have w[b] - M == 0.0 exactly (same
+  // bit pattern subtracted from itself), so exp(w[b] - M) == 1.0 exactly:
+  // skip the call rather than compute it.
   double acc = 0.0;
   for (int b = 0; b < 4; b++) {
-    if (p[b] > 0.0) acc += p[b] * std::exp(-gamma_ra * vb[b] - M);
+    if (p[b] <= 0.0) continue;
+    acc += (w[b] == M) ? p[b] : p[b] * std::exp(w[b] - M);
   }
   return -(M + std::log(acc)) / gamma_ra;
 }
