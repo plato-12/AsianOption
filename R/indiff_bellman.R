@@ -62,17 +62,19 @@
                          lambda_I, kappa_I, eta, rho,
                          lambda_bar_T, lambda_bar_P, kappa_J,
                          k_A, k_B, psi_cost,
-                         gamma, Gamma_Q, Gamma_J,
-                         Q_bar, nu_bar, phi_cap, n_options,
+                         gamma, Gamma_Q, ell_1,
+                         Q_bar, nu_bar, eps_exec, phi_cap, n_options,
                          I0, Q0, J0,
                          control_set, n_controls,
                          n_logS, n_I, n_Q, n_J, n_R,
-                         option_type, accum_rule, accum_sd, grid_drift,
+                         option_type, accum_rule, monitoring, n_fixings,
+                         accum_sd, grid_drift,
                          store_policy, n_threads, engine_mode, verbose,
                          validate) {
 
   option_type <- match.arg(option_type, c("call", "put"))
   accum_rule  <- match.arg(accum_rule, c("trapezoid", "left"))
+  monitoring  <- match.arg(monitoring, c("continuous", "discrete"))
   engine_mode <- match.arg(engine_mode, c("cached", "reference"))
 
   if (is.null(control_set)) {
@@ -88,12 +90,12 @@
       lambda_I = lambda_I, kappa_I = kappa_I, eta = eta, rho = rho,
       lambda_bar_T = lambda_bar_T, lambda_bar_P = lambda_bar_P,
       kappa_J = kappa_J, k_A = k_A, k_B = k_B, psi_cost = psi_cost,
-      gamma = gamma, Gamma_Q = Gamma_Q, Gamma_J = Gamma_J,
-      Q_bar = Q_bar, nu_bar = nu_bar, phi_cap = phi_cap,
+      gamma = gamma, Gamma_Q = Gamma_Q, ell_1 = ell_1,
+      Q_bar = Q_bar, nu_bar = nu_bar, eps_exec = eps_exec, phi_cap = phi_cap,
       n_options = n_options, I0 = I0, Q0 = Q0, J0 = J0,
       control_set = control_set,
       n_logS = n_logS, n_I = n_I, n_Q = n_Q, n_J = n_J, n_R = n_R,
-      accum_sd = accum_sd
+      accum_sd = accum_sd, monitoring = monitoring, n_fixings = n_fixings
     )
   }
 
@@ -101,6 +103,17 @@
   mu_vec  <- .indiff_time_vector(mu, T, N, "mu")
   eta_vec <- .indiff_time_vector(eta, T, N, "eta")
   if (any(eta_vec < 0)) stop("eta must be non-negative for all t in [0, T]")
+
+  # Accumulator weights. Under continuous monitoring the engine ignores them.
+  # Under discrete monitoring the fixings are t_k = k T / M, k = 1, ..., M, and
+  # the weight T / M sits on the step that *ends* at t_k, so a jumps by
+  # (T/M) h(S_{t_k}). The validator has already checked that M divides N, so
+  # every fixing lands exactly on a time-grid node.
+  fix_w <- numeric(N)
+  if (monitoring == "discrete") {
+    n_fixings <- as.integer(n_fixings)
+    fix_w[seq_len(n_fixings) * (N %/% n_fixings)] <- T / n_fixings
+  }
 
   run <- function(theta, store) {
     indiff_bellman_engine_cpp(
@@ -111,8 +124,8 @@
       lambda_bar_T = lambda_bar_T, lambda_bar_P = lambda_bar_P,
       kappa_J = kappa_J,
       k_A = k_A, k_B = k_B, psi_cost = psi_cost,
-      gamma_ra = gamma, Gamma_Q = Gamma_Q, Gamma_J = Gamma_J,
-      Q_bar = Q_bar,
+      gamma_ra = gamma, Gamma_Q = Gamma_Q, ell_1 = ell_1,
+      Q_bar = Q_bar, eps_exec = eps_exec,
       phi_cap = if (is.null(phi_cap)) -1 else phi_cap,
       n_opt = n_options,
       I0 = I0, Q0 = Q0, J0 = J0,
@@ -124,6 +137,8 @@
       option_type = if (option_type == "call") 0L else 1L,
       theta = as.integer(theta),
       accum_rule = if (accum_rule == "trapezoid") 1L else 0L,
+      monitor_mode = if (monitoring == "discrete") 1L else 0L,
+      fix_w = fix_w,
       accum_sd = accum_sd,
       grid_drift = if (isTRUE(grid_drift)) 1L else 0L,
       store_policy = isTRUE(store),
@@ -162,6 +177,20 @@
     ))
   }
 
+  # The v2 admissible set can be empty: when no trading rate keeps the
+  # execution price above eps_exec over the next step, the dealer is forced to
+  # stand still. That is a modelling boundary being hit, not a silent clip, so
+  # it is reported rather than absorbed.
+  n_infeasible <- res0$n_infeasible + resP$n_infeasible + resM$n_infeasible
+  if (n_infeasible > 0) {
+    warning(sprintf(
+      paste0("The admissible set was empty at %.0f (node, step) combinations; ",
+             "nu = 0 was used there. Lower eps_exec, widen Q_bar/J bounds, or ",
+             "reduce lambda_bar_P / lambda_bar_T."),
+      n_infeasible
+    ))
+  }
+
   clamp_frac <- function(res) {
     tot <- res$n_bracket
     ifelse(tot > 0, res$n_clamped / pmax(tot, 1), 0)
@@ -186,6 +215,7 @@
                        short    = resP$n_clamped,
                        long     = resM$n_clamped),
       initial_state_interior = res0$initial_state_interior,
+      n_infeasible = n_infeasible,
       grid_aligned = res0$grid_aligned,
       shock_cells  = res0$shock_cells,
       collapsed_I  = res0$collapsed_I,
@@ -203,10 +233,12 @@
       mu = mu, lambda_I = lambda_I, kappa_I = kappa_I, eta = eta, rho = rho,
       lambda_bar_T = lambda_bar_T, lambda_bar_P = lambda_bar_P,
       kappa_J = kappa_J, k_A = k_A, k_B = k_B, psi_cost = psi_cost,
-      gamma = gamma, Gamma_Q = Gamma_Q, Gamma_J = Gamma_J,
-      Q_bar = Q_bar, nu_bar = nu_bar, phi_cap = phi_cap,
+      gamma = gamma, Gamma_Q = Gamma_Q, ell_1 = ell_1,
+      Q_bar = Q_bar, nu_bar = nu_bar, eps_exec = eps_exec, phi_cap = phi_cap,
       n_options = n_options, I0 = I0, Q0 = Q0, J0 = J0,
-      accum_rule = accum_rule, accum_sd = accum_sd, grid_drift = grid_drift,
+      accum_rule = accum_rule, monitoring = monitoring,
+      n_fixings = if (monitoring == "discrete") as.integer(n_fixings) else NULL,
+      accum_sd = accum_sd, grid_drift = grid_drift,
       engine_mode = engine_mode
     ),
     grid_sizes = list(
@@ -262,13 +294,21 @@
 #'           + k_A (\nu^+)^{1+\psi} + k_B (\nu^-)^{1+\psi}.}
 #'
 #' For \eqn{\theta \in \{-1, 0, +1\}} the terminal value is
-#' \deqn{v^\theta_N = q s - \tfrac{\Gamma_Q}{2}q^2 - \tfrac{\Gamma_J}{2}j^2
-#'                    - \theta\, n\, \Phi(a),}
+#' \deqn{v^\theta_N = q s - L(q) - \theta\, n\, \Phi(a), \qquad
+#'       L(q) = \ell_1 |q| + \tfrac{\Gamma_Q}{2}q^2,}
 #' and the backward recursion maximises
 #' \deqn{-\beta_m \delta_r g - \frac{1}{\gamma}\log \sum_{\xi\zeta}
 #'        p_{\xi\zeta} \exp(-\gamma v^\theta_{m+1}(s', i', q', j', a'))}
-#' over admissible \eqn{\nu}. The quotes are
-#' \eqn{P_{ask} = (v^0_0 - v^+_0)/e^{rT}} and
+#' over the admissible set
+#' \deqn{U_m(s, i, q, j) = \{\nu : |q'| \le \bar Q,\;
+#'       s + \bar\lambda_P q + \bar\lambda_T j \ge \epsilon,\;
+#'       s'_\xi + \bar\lambda_P q' + \bar\lambda_T j' \ge \epsilon
+#'       \textrm{ for } \xi \in \{-1, +1\}\}.}
+#' The second condition is forward-looking: a trade is admissible only if the
+#' execution price still clears \eqn{\epsilon = } \code{eps_exec} after one
+#' step, along both price branches. There is no terminal charge on \eqn{j};
+#' the dealer's transient impact enters only through pre-expiry execution
+#' costs. The quotes are \eqn{P_{ask} = (v^0_0 - v^+_0)/e^{rT}} and
 #' \eqn{P_{bid} = (v^-_0 - v^0_0)/e^{rT}}, divided by \code{n_options}.
 #'
 #' The discrete, compact-grid model is the primitive. Under a continuous state
@@ -299,10 +339,15 @@
 #' @param k_A,k_B Buy- and sell-side temporary execution cost coefficients.
 #' @param psi_cost Temporary cost exponent; the model assumes \eqn{(0, 1]}.
 #' @param gamma Absolute risk aversion of the dealer (positive).
-#' @param Gamma_Q,Gamma_J Terminal liquidation penalties on inventory and on
-#'   the dealer impact state.
+#' @param Gamma_Q Quadratic terminal liquidation penalty on inventory.
+#' @param ell_1 Linear terminal liquidation penalty on inventory, the
+#'   \eqn{\ell_1} of \eqn{L(q) = \ell_1|q| + (\Gamma_Q/2)q^2}. Defaults to 0,
+#'   which gives the purely quadratic charge.
 #' @param Q_bar Inventory bound; the grid is exactly \eqn{[-\bar Q, \bar Q]}.
 #' @param nu_bar Trading-rate bound used to build the default control set.
+#' @param eps_exec Floor the execution price must clear for a trade to be
+#'   admissible, both at the current node and one step ahead on either price
+#'   branch. Defaults to \code{1e-6 * S0}.
 #' @param phi_cap Optional cap on the option payoff; \code{NULL} for no cap.
 #'   Irrelevant for puts, whose payoff is already bounded.
 #' @param n_options Option notional. Quotes are reported per unit.
@@ -324,9 +369,17 @@
 #'   remaining discretisation error in the price level; see
 #'   \code{inst/scripts/indiff_convergence.R}.
 #' @param option_type \code{"call"} (default) or \code{"put"}.
-#' @param accum_rule Quadrature for the running accumulator: \code{"trapezoid"}
-#'   (default) or \code{"left"}, the latter matching the plain left-endpoint
-#'   rule at the cost of an O(dt) error in the variance of the average.
+#' @param accum_rule Quadrature for the running accumulator under continuous
+#'   monitoring: \code{"trapezoid"} (default) or \code{"left"}, the latter
+#'   matching the plain left-endpoint rule at the cost of an O(dt) error in the
+#'   variance of the average. Ignored when \code{monitoring = "discrete"}.
+#' @param monitoring \code{"continuous"} (default) averages over the whole
+#'   path; \code{"discrete"} averages over \code{n_fixings} contractual fixing
+#'   dates \eqn{t_k = kT/M}, \eqn{k = 1, \ldots, M}, updating the accumulator
+#'   only on those dates.
+#' @param n_fixings Number of equally spaced fixing dates. Required when
+#'   \code{monitoring = "discrete"} and ignored otherwise. Must divide \code{N}
+#'   exactly, so that every fixing lands on a time-grid node.
 #' @param accum_sd Accumulator grid half-width in standard deviations of the
 #'   running average, capped by the reachable-set bound.
 #' @param grid_drift If \code{TRUE} (default) the log-price grid tracks the
@@ -378,14 +431,15 @@ price_arithmetic_asian_indiff <- function(
     lambda_bar_T = 0.05, lambda_bar_P = 0.025, kappa_J = 1,
     k_A = 0.05, k_B = 0.05, psi_cost = 1,
     gamma = 0.05,
-    Gamma_Q = 1, Gamma_J = 0.1,
-    Q_bar = 2, nu_bar = 4,
+    Gamma_Q = 1, ell_1 = 0,
+    Q_bar = 2, nu_bar = 4, eps_exec = 1e-6 * S0,
     phi_cap = NULL, n_options = 1,
     I0 = 0, Q0 = 0, J0 = 0,
     control_set = NULL, n_controls = 15,
     n_logS = NULL, n_I = 21, n_Q = 21, n_J = 15, n_R = 121,
     option_type = c("call", "put"),
     accum_rule = c("trapezoid", "left"),
+    monitoring = c("continuous", "discrete"), n_fixings = NULL,
     accum_sd = 5, grid_drift = TRUE,
     store_policy = FALSE, n_threads = 0,
     engine_mode = c("cached", "reference"),
@@ -396,12 +450,13 @@ price_arithmetic_asian_indiff <- function(
                lambda_I, kappa_I, eta, rho,
                lambda_bar_T, lambda_bar_P, kappa_J,
                k_A, k_B, psi_cost,
-               gamma, Gamma_Q, Gamma_J,
-               Q_bar, nu_bar, phi_cap, n_options,
+               gamma, Gamma_Q, ell_1,
+               Q_bar, nu_bar, eps_exec, phi_cap, n_options,
                I0, Q0, J0,
                control_set, n_controls,
                n_logS, n_I, n_Q, n_J, n_R,
-               option_type, accum_rule, accum_sd, grid_drift,
+               option_type, accum_rule, monitoring, n_fixings,
+               accum_sd, grid_drift,
                store_policy, n_threads, engine_mode, verbose, validate)
 }
 
@@ -439,14 +494,15 @@ price_geometric_asian_indiff <- function(
     lambda_bar_T = 0.05, lambda_bar_P = 0.025, kappa_J = 1,
     k_A = 0.05, k_B = 0.05, psi_cost = 1,
     gamma = 0.05,
-    Gamma_Q = 1, Gamma_J = 0.1,
-    Q_bar = 2, nu_bar = 4,
+    Gamma_Q = 1, ell_1 = 0,
+    Q_bar = 2, nu_bar = 4, eps_exec = 1e-6 * S0,
     phi_cap = NULL, n_options = 1,
     I0 = 0, Q0 = 0, J0 = 0,
     control_set = NULL, n_controls = 15,
     n_logS = NULL, n_I = 21, n_Q = 21, n_J = 15, n_R = 121, n_Z = NULL,
     option_type = c("call", "put"),
     accum_rule = c("trapezoid", "left"),
+    monitoring = c("continuous", "discrete"), n_fixings = NULL,
     accum_sd = 5, grid_drift = TRUE,
     store_policy = FALSE, n_threads = 0,
     engine_mode = c("cached", "reference"),
@@ -459,12 +515,13 @@ price_geometric_asian_indiff <- function(
                lambda_I, kappa_I, eta, rho,
                lambda_bar_T, lambda_bar_P, kappa_J,
                k_A, k_B, psi_cost,
-               gamma, Gamma_Q, Gamma_J,
-               Q_bar, nu_bar, phi_cap, n_options,
+               gamma, Gamma_Q, ell_1,
+               Q_bar, nu_bar, eps_exec, phi_cap, n_options,
                I0, Q0, J0,
                control_set, n_controls,
                n_logS, n_I, n_Q, n_J, n_R,
-               option_type, accum_rule, accum_sd, grid_drift,
+               option_type, accum_rule, monitoring, n_fixings,
+               accum_sd, grid_drift,
                store_policy, n_threads, engine_mode, verbose, validate)
 }
 
@@ -491,12 +548,16 @@ print.indiff_asian <- function(x, ...) {
   p <- x$params
   cat(sprintf("Parameters:  S0=%.2f  K=%.2f  T=%.2f  N=%d  sigma=%.3f  r=%.4f\n",
               p$S0, p$K, p$T, p$N, p$sigma, p$r_cont))
-  cat(sprintf("             gamma=%.4g  Gamma_Q=%.3g  Gamma_J=%.3g  Q_bar=%.2f  nu_bar=%.2f\n",
-              p$gamma, p$Gamma_Q, p$Gamma_J, p$Q_bar, p$nu_bar))
+  cat(sprintf("             gamma=%.4g  Gamma_Q=%.3g  ell_1=%.3g  Q_bar=%.2f  nu_bar=%.2f\n",
+              p$gamma, p$Gamma_Q, p$ell_1, p$Q_bar, p$nu_bar))
   cat(sprintf("             lambda_I=%.4g  lambda_T=%.4g  lambda_P=%.4g  kappa_J=%.3g\n",
               p$lambda_I, p$lambda_bar_T, p$lambda_bar_P, p$kappa_J))
-  cat(sprintf("             k_A=%.3g  k_B=%.3g  psi=%.2f  rho=%.2f\n",
-              p$k_A, p$k_B, p$psi_cost, p$rho))
+  cat(sprintf("             k_A=%.3g  k_B=%.3g  psi=%.2f  rho=%.2f  eps_exec=%.3g\n",
+              p$k_A, p$k_B, p$psi_cost, p$rho, p$eps_exec))
+  if (identical(p$monitoring, "discrete")) {
+    cat(sprintf("             monitoring=discrete (%d fixings)\n",
+                p$n_fixings))
+  }
   g <- x$grid_sizes
   cat(sprintf("Grid sizes:  n_logS=%d  n_I=%d  n_Q=%d  n_J=%d  n_R=%d  n_controls=%d  (%.2fM states)\n",
               g$n_logS, g$n_I, g$n_Q, g$n_J, g$n_R, g$n_controls,
@@ -530,6 +591,10 @@ summary.indiff_asian <- function(object, ...) {
   }
   cat(sprintf("  Initial state interior: %s\n",
               if (isTRUE(d$initial_state_interior)) "yes" else "NO"))
+  if (isTRUE(d$n_infeasible > 0)) {
+    cat(sprintf("  Empty admissible set: %.0f (node, step) combination(s)\n",
+                d$n_infeasible))
+  }
   cf <- d$clamp_fraction$baseline
   cat("  Clamped bracket fraction by dimension:\n")
   cat(sprintf("    logS %.2e   I %.2e   Q %.2e   J %.2e   R %.2e\n",

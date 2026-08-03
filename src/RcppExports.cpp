@@ -418,8 +418,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // indiff_bellman_engine_cpp
-Rcpp::List indiff_bellman_engine_cpp(double S0, double K, double T_mat, int N, Rcpp::NumericVector mu_vec, double sigma, double r_cont, double lambda_I, double kappa_I, Rcpp::NumericVector eta_vec, double rho, double lambda_bar_T, double lambda_bar_P, double kappa_J, double k_A, double k_B, double psi_cost, double gamma_ra, double Gamma_Q, double Gamma_J, double Q_bar, double phi_cap, double n_opt, double I0, double Q0, double J0, Rcpp::NumericVector control_set, int n_logS, int n_I, int n_Q, int n_J, int n_R, int asian_type, int option_type, int theta, int accum_rule, double accum_sd, int grid_drift, bool store_policy, int n_threads, int engine_mode, bool verbose);
-RcppExport SEXP _AsianOption_indiff_bellman_engine_cpp(SEXP S0SEXP, SEXP KSEXP, SEXP T_matSEXP, SEXP NSEXP, SEXP mu_vecSEXP, SEXP sigmaSEXP, SEXP r_contSEXP, SEXP lambda_ISEXP, SEXP kappa_ISEXP, SEXP eta_vecSEXP, SEXP rhoSEXP, SEXP lambda_bar_TSEXP, SEXP lambda_bar_PSEXP, SEXP kappa_JSEXP, SEXP k_ASEXP, SEXP k_BSEXP, SEXP psi_costSEXP, SEXP gamma_raSEXP, SEXP Gamma_QSEXP, SEXP Gamma_JSEXP, SEXP Q_barSEXP, SEXP phi_capSEXP, SEXP n_optSEXP, SEXP I0SEXP, SEXP Q0SEXP, SEXP J0SEXP, SEXP control_setSEXP, SEXP n_logSSEXP, SEXP n_ISEXP, SEXP n_QSEXP, SEXP n_JSEXP, SEXP n_RSEXP, SEXP asian_typeSEXP, SEXP option_typeSEXP, SEXP thetaSEXP, SEXP accum_ruleSEXP, SEXP accum_sdSEXP, SEXP grid_driftSEXP, SEXP store_policySEXP, SEXP n_threadsSEXP, SEXP engine_modeSEXP, SEXP verboseSEXP) {
+Rcpp::List indiff_bellman_engine_cpp(double S0, double K, double T_mat, int N, Rcpp::NumericVector mu_vec, double sigma, double r_cont, double lambda_I, double kappa_I, Rcpp::NumericVector eta_vec, double rho, double lambda_bar_T, double lambda_bar_P, double kappa_J, double k_A, double k_B, double psi_cost, double gamma_ra, double Gamma_Q, double ell_1, double Q_bar, double eps_exec, double phi_cap, double n_opt, double I0, double Q0, double J0, Rcpp::NumericVector control_set, int n_logS, int n_I, int n_Q, int n_J, int n_R, int asian_type, int option_type, int theta, int accum_rule, int monitor_mode, Rcpp::NumericVector fix_w, double accum_sd, int grid_drift, bool store_policy, int n_threads, int engine_mode, bool verbose);
+RcppExport SEXP _AsianOption_indiff_bellman_engine_cpp(SEXP S0SEXP, SEXP KSEXP, SEXP T_matSEXP, SEXP NSEXP, SEXP mu_vecSEXP, SEXP sigmaSEXP, SEXP r_contSEXP, SEXP lambda_ISEXP, SEXP kappa_ISEXP, SEXP eta_vecSEXP, SEXP rhoSEXP, SEXP lambda_bar_TSEXP, SEXP lambda_bar_PSEXP, SEXP kappa_JSEXP, SEXP k_ASEXP, SEXP k_BSEXP, SEXP psi_costSEXP, SEXP gamma_raSEXP, SEXP Gamma_QSEXP, SEXP ell_1SEXP, SEXP Q_barSEXP, SEXP eps_execSEXP, SEXP phi_capSEXP, SEXP n_optSEXP, SEXP I0SEXP, SEXP Q0SEXP, SEXP J0SEXP, SEXP control_setSEXP, SEXP n_logSSEXP, SEXP n_ISEXP, SEXP n_QSEXP, SEXP n_JSEXP, SEXP n_RSEXP, SEXP asian_typeSEXP, SEXP option_typeSEXP, SEXP thetaSEXP, SEXP accum_ruleSEXP, SEXP monitor_modeSEXP, SEXP fix_wSEXP, SEXP accum_sdSEXP, SEXP grid_driftSEXP, SEXP store_policySEXP, SEXP n_threadsSEXP, SEXP engine_modeSEXP, SEXP verboseSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -442,8 +442,9 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< double >::type psi_cost(psi_costSEXP);
     Rcpp::traits::input_parameter< double >::type gamma_ra(gamma_raSEXP);
     Rcpp::traits::input_parameter< double >::type Gamma_Q(Gamma_QSEXP);
-    Rcpp::traits::input_parameter< double >::type Gamma_J(Gamma_JSEXP);
+    Rcpp::traits::input_parameter< double >::type ell_1(ell_1SEXP);
     Rcpp::traits::input_parameter< double >::type Q_bar(Q_barSEXP);
+    Rcpp::traits::input_parameter< double >::type eps_exec(eps_execSEXP);
     Rcpp::traits::input_parameter< double >::type phi_cap(phi_capSEXP);
     Rcpp::traits::input_parameter< double >::type n_opt(n_optSEXP);
     Rcpp::traits::input_parameter< double >::type I0(I0SEXP);
@@ -459,13 +460,15 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< int >::type option_type(option_typeSEXP);
     Rcpp::traits::input_parameter< int >::type theta(thetaSEXP);
     Rcpp::traits::input_parameter< int >::type accum_rule(accum_ruleSEXP);
+    Rcpp::traits::input_parameter< int >::type monitor_mode(monitor_modeSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type fix_w(fix_wSEXP);
     Rcpp::traits::input_parameter< double >::type accum_sd(accum_sdSEXP);
     Rcpp::traits::input_parameter< int >::type grid_drift(grid_driftSEXP);
     Rcpp::traits::input_parameter< bool >::type store_policy(store_policySEXP);
     Rcpp::traits::input_parameter< int >::type n_threads(n_threadsSEXP);
     Rcpp::traits::input_parameter< int >::type engine_mode(engine_modeSEXP);
     Rcpp::traits::input_parameter< bool >::type verbose(verboseSEXP);
-    rcpp_result_gen = Rcpp::wrap(indiff_bellman_engine_cpp(S0, K, T_mat, N, mu_vec, sigma, r_cont, lambda_I, kappa_I, eta_vec, rho, lambda_bar_T, lambda_bar_P, kappa_J, k_A, k_B, psi_cost, gamma_ra, Gamma_Q, Gamma_J, Q_bar, phi_cap, n_opt, I0, Q0, J0, control_set, n_logS, n_I, n_Q, n_J, n_R, asian_type, option_type, theta, accum_rule, accum_sd, grid_drift, store_policy, n_threads, engine_mode, verbose));
+    rcpp_result_gen = Rcpp::wrap(indiff_bellman_engine_cpp(S0, K, T_mat, N, mu_vec, sigma, r_cont, lambda_I, kappa_I, eta_vec, rho, lambda_bar_T, lambda_bar_P, kappa_J, k_A, k_B, psi_cost, gamma_ra, Gamma_Q, ell_1, Q_bar, eps_exec, phi_cap, n_opt, I0, Q0, J0, control_set, n_logS, n_I, n_Q, n_J, n_R, asian_type, option_type, theta, accum_rule, monitor_mode, fix_w, accum_sd, grid_drift, store_policy, n_threads, engine_mode, verbose));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -531,7 +534,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_AsianOption_indiff_discount_helpers_cpp", (DL_FUNC) &_AsianOption_indiff_discount_helpers_cpp, 3},
     {"_AsianOption_indiff_payoff_cpp", (DL_FUNC) &_AsianOption_indiff_payoff_cpp, 7},
     {"_AsianOption_indiff_parallel_backend_cpp", (DL_FUNC) &_AsianOption_indiff_parallel_backend_cpp, 0},
-    {"_AsianOption_indiff_bellman_engine_cpp", (DL_FUNC) &_AsianOption_indiff_bellman_engine_cpp, 42},
+    {"_AsianOption_indiff_bellman_engine_cpp", (DL_FUNC) &_AsianOption_indiff_bellman_engine_cpp, 45},
     {"_AsianOption_price_kemna_vorst_arithmetic_cpp", (DL_FUNC) &_AsianOption_price_kemna_vorst_arithmetic_cpp, 11},
     {"_AsianOption_price_kemna_vorst_arithmetic_binomial_cpp", (DL_FUNC) &_AsianOption_price_kemna_vorst_arithmetic_binomial_cpp, 10},
     {NULL, NULL, 0}

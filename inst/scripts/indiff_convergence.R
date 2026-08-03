@@ -67,7 +67,7 @@ frictionless <- function(N, n_R, n_logS = NULL, accum_rule = "trapezoid") {
   price_geometric_asian_indiff(
     S0 = S0, K = K, T = T, N = N, sigma = sigma, r_cont = r,
     lambda_I = 0, eta = 0, lambda_bar_T = 0, lambda_bar_P = 0,
-    k_A = 0, k_B = 0, gamma = 1e-6, Gamma_Q = 1e-6, Gamma_J = 1e-6,
+    k_A = 0, k_B = 0, gamma = 1e-6, Gamma_Q = 1e-6, ell_1 = 0,
     Q_bar = 10, nu_bar = 10, control_set = 0,
     n_I = 5L, n_Q = 5L, n_J = 5L, n_R = n_R, n_logS = n_logS,
     accum_rule = accum_rule

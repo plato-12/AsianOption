@@ -12,10 +12,11 @@ valid_validator_args <- list(
   lambda_I = 0, kappa_I = 1, eta = 0.5, rho = 0,
   lambda_bar_T = 0.05, lambda_bar_P = 0.025, kappa_J = 1,
   k_A = 0.05, k_B = 0.05, psi_cost = 1,
-  gamma = 0.05, Gamma_Q = 1, Gamma_J = 0.1,
-  Q_bar = 2, nu_bar = 4, phi_cap = NULL, n_options = 1,
+  gamma = 0.05, Gamma_Q = 1, ell_1 = 0,
+  Q_bar = 2, nu_bar = 4, eps_exec = 1e-4, phi_cap = NULL, n_options = 1,
   I0 = 0, Q0 = 0, J0 = 0, control_set = c(-1, 0, 1),
-  n_logS = NULL, n_I = 21, n_Q = 21, n_J = 15, n_R = 121, accum_sd = 5
+  n_logS = NULL, n_I = 21, n_Q = 21, n_J = 15, n_R = 121, accum_sd = 5,
+  monitoring = "continuous", n_fixings = NULL
 )
 .validator <- AsianOption:::validate_indiff_inputs
 bad <- function(...) {
@@ -47,7 +48,8 @@ test_that("the validator rejects out-of-range model parameters", {
   expect_error(bad(k_A = -1), "k_A must be non-negative")
   expect_error(bad(k_B = -1), "k_B must be non-negative")
   expect_error(bad(Gamma_Q = -1), "Gamma_Q must be non-negative")
-  expect_error(bad(Gamma_J = -1), "Gamma_J must be non-negative")
+  expect_error(bad(ell_1 = -1), "ell_1 must be non-negative")
+  expect_error(bad(eps_exec = -1), "eps_exec must be non-negative")
   expect_error(bad(psi_cost = 0), "psi_cost must be in \\(0, 2\\]")
   expect_error(bad(psi_cost = 3), "psi_cost must be in \\(0, 2\\]")
   expect_warning(bad(psi_cost = 1.5), "outside the range")
@@ -61,9 +63,27 @@ test_that("the validator enforces the dealer's admissibility conditions", {
   expect_error(bad(control_set = c(-1, 1)), "control_set must contain 0")
   expect_error(bad(phi_cap = 0), "phi_cap must be a positive number or NULL")
   expect_error(bad(phi_cap = -3), "phi_cap must be a positive number or NULL")
-  # Initial execution price s + lambda_bar_P q + lambda_bar_T j must be > 0.
+  # Initial execution price s + lambda_bar_P q + lambda_bar_T j must clear
+  # eps_exec, the floor note_v2 (8) puts on the admissible set.
   expect_error(bad(J0 = -1e5, lambda_bar_T = 1),
-               "Initial execution price .* must be positive")
+               "Initial execution price .* must be at least eps_exec")
+  expect_error(bad(eps_exec = 200),
+               "Initial execution price .* must be at least eps_exec")
+})
+
+test_that("the validator enforces the discrete-monitoring fixing schedule", {
+  expect_error(bad(monitoring = "discrete"),
+               "n_fixings is required when monitoring")
+  expect_error(bad(monitoring = "discrete", n_fixings = 0),
+               "n_fixings must be a positive integer")
+  expect_error(bad(monitoring = "discrete", n_fixings = 2.5),
+               "n_fixings must be a positive integer")
+  expect_error(bad(monitoring = "discrete", n_fixings = 20, N = 10),
+               "n_fixings = 20 must not exceed N = 10")
+  # Fixings must land on time-grid nodes rather than be snapped to them.
+  expect_error(bad(monitoring = "discrete", n_fixings = 3, N = 10),
+               "n_fixings = 3 must divide N = 10 exactly")
+  expect_silent(bad(monitoring = "discrete", n_fixings = 5, N = 10))
 })
 
 test_that("the validator enforces minimum grid sizes", {

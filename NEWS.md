@@ -1,3 +1,36 @@
+# AsianOption 0.4.0
+
+## Indifference engine updated to the revised model specification
+
+The utility-indifference module now implements the revised specification of
+Tiwari & Majumdar. Three changes affect the numbers it produces.
+
+**The terminal liquidation charge no longer penalises the dealer impact state.**
+It is now `L(q) = ell_1 * |q| + (Gamma_Q / 2) * q^2`: a new linear term, and no
+term in `j` at all. The dealer's transient impact enters only through pre-expiry
+execution costs. **`Gamma_J` has been removed** from
+`price_arithmetic_asian_indiff()`, `price_geometric_asian_indiff()` and the
+internal validator; calls that pass it will error. Its replacement, `ell_1`,
+defaults to `0`, which gives the purely quadratic charge. At `Gamma_J = 0` the
+new engine reproduces the old quotes to machine precision.
+
+**Trading admissibility is now forward-looking.** A trade is admissible only if
+the execution price `S + lambda_bar_P * Q + lambda_bar_T * J` clears the floor
+`eps_exec` both at the current state and after one step, on both price branches.
+`eps_exec` is a new argument defaulting to `1e-6 * S0`. Unlike the previous
+condition, this set can be empty; the dealer then stands still, and the number
+of such states is reported as `diagnostics$n_infeasible` and raised as a
+warning rather than absorbed silently.
+
+**Discrete monitoring is now supported.** `monitoring = "discrete"` with
+`n_fixings = M` averages over the contractual fixing dates `t_k = kT/M` instead
+of over the whole path, updating the accumulator only on those dates. `M` must
+divide `N` so every fixing falls on a time-grid node. The accumulator grid is
+sized from the exact variance of the discrete average, which at small `M` is
+substantially wider than the continuous one. Quotes converge to the continuous
+case at rate `O(1/M)`. `monitoring = "continuous"` remains the default and is
+unchanged.
+
 # AsianOption 0.3.0
 
 ## Bug fix: Kemna-Vorst benchmarks now return present values

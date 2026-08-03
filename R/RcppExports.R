@@ -122,8 +122,10 @@ indiff_parallel_backend_cpp <- function() {
 #' @param lambda_bar_T,lambda_bar_P,kappa_J Dealer execution-impact parameters.
 #' @param k_A,k_B,psi_cost Temporary execution cost parameters.
 #' @param gamma_ra Absolute risk aversion.
-#' @param Gamma_Q,Gamma_J Terminal liquidation penalties.
+#' @param Gamma_Q,ell_1 Quadratic and linear terminal liquidation charges on
+#'   inventory. There is no terminal charge on the dealer impact state.
 #' @param Q_bar Inventory bound.
+#' @param eps_exec Execution-price floor of the admissible set.
 #' @param phi_cap Payoff cap; values <= 0 mean no cap.
 #' @param n_opt Option notional.
 #' @param I0,Q0,J0 Initial exogenous impact, inventory and dealer impact state.
@@ -134,6 +136,11 @@ indiff_parallel_backend_cpp <- function() {
 #' @param option_type 0 = call, 1 = put.
 #' @param theta -1 (long), 0 (baseline) or +1 (short).
 #' @param accum_rule 0 = left-endpoint, 1 = trapezoidal accumulator quadrature.
+#'   Ignored under discrete monitoring.
+#' @param monitor_mode 0 = continuous monitoring, 1 = discrete fixing dates.
+#' @param fix_w Length-N vector of accumulator weights; entry \code{m} is
+#'   applied at step \code{m} and is non-zero only when \code{t_{m+1}} is a
+#'   fixing date. Used only when \code{monitor_mode = 1}.
 #' @param accum_sd Accumulator grid half-width in standard deviations of the
 #'   running average; capped by the reachable-set bound.
 #' @param grid_drift 1 = let the log-price grid track the deterministic drift.
@@ -145,8 +152,8 @@ indiff_parallel_backend_cpp <- function() {
 #' @return A list with the value at the initial state, the grids, clamp
 #'   diagnostics and (optionally) forward policy paths.
 #' @keywords internal
-indiff_bellman_engine_cpp <- function(S0, K, T_mat, N, mu_vec, sigma, r_cont, lambda_I, kappa_I, eta_vec, rho, lambda_bar_T, lambda_bar_P, kappa_J, k_A, k_B, psi_cost, gamma_ra, Gamma_Q, Gamma_J, Q_bar, phi_cap, n_opt, I0, Q0, J0, control_set, n_logS, n_I, n_Q, n_J, n_R, asian_type, option_type, theta, accum_rule, accum_sd, grid_drift, store_policy, n_threads, engine_mode, verbose) {
-    .Call(`_AsianOption_indiff_bellman_engine_cpp`, S0, K, T_mat, N, mu_vec, sigma, r_cont, lambda_I, kappa_I, eta_vec, rho, lambda_bar_T, lambda_bar_P, kappa_J, k_A, k_B, psi_cost, gamma_ra, Gamma_Q, Gamma_J, Q_bar, phi_cap, n_opt, I0, Q0, J0, control_set, n_logS, n_I, n_Q, n_J, n_R, asian_type, option_type, theta, accum_rule, accum_sd, grid_drift, store_policy, n_threads, engine_mode, verbose)
+indiff_bellman_engine_cpp <- function(S0, K, T_mat, N, mu_vec, sigma, r_cont, lambda_I, kappa_I, eta_vec, rho, lambda_bar_T, lambda_bar_P, kappa_J, k_A, k_B, psi_cost, gamma_ra, Gamma_Q, ell_1, Q_bar, eps_exec, phi_cap, n_opt, I0, Q0, J0, control_set, n_logS, n_I, n_Q, n_J, n_R, asian_type, option_type, theta, accum_rule, monitor_mode, fix_w, accum_sd, grid_drift, store_policy, n_threads, engine_mode, verbose) {
+    .Call(`_AsianOption_indiff_bellman_engine_cpp`, S0, K, T_mat, N, mu_vec, sigma, r_cont, lambda_I, kappa_I, eta_vec, rho, lambda_bar_T, lambda_bar_P, kappa_J, k_A, k_B, psi_cost, gamma_ra, Gamma_Q, ell_1, Q_bar, eps_exec, phi_cap, n_opt, I0, Q0, J0, control_set, n_logS, n_I, n_Q, n_J, n_R, asian_type, option_type, theta, accum_rule, monitor_mode, fix_w, accum_sd, grid_drift, store_policy, n_threads, engine_mode, verbose)
 }
 
 price_kemna_vorst_arithmetic_cpp <- function(S0, K, r, sigma, T0, T_mat, n, M, option_type = "call", use_control_variate = TRUE, seed = 0L) {

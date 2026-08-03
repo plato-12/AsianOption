@@ -23,15 +23,19 @@
 #' @param k_A,k_B Buy- and sell-side temporary cost coefficients.
 #' @param psi_cost Temporary cost exponent.
 #' @param gamma Absolute risk aversion of the dealer.
-#' @param Gamma_Q,Gamma_J Terminal liquidation penalties.
+#' @param Gamma_Q Quadratic terminal liquidation penalty on inventory.
+#' @param ell_1 Linear terminal liquidation penalty on inventory.
 #' @param Q_bar Inventory bound.
 #' @param nu_bar Trading-rate bound.
+#' @param eps_exec Execution-price floor of the admissible set.
 #' @param phi_cap Optional payoff cap.
 #' @param n_options Option notional.
 #' @param I0,Q0,J0 Initial states.
 #' @param control_set Numeric vector of admissible trading rates.
 #' @param n_logS,n_I,n_Q,n_J,n_R Grid sizes.
 #' @param accum_sd Accumulator grid half-width in standard deviations.
+#' @param monitoring \code{"continuous"} or \code{"discrete"}.
+#' @param n_fixings Number of fixing dates when monitoring is discrete.
 #'
 #' @return \code{NULL}, invisibly. Throws an error if validation fails.
 #' @keywords internal
@@ -39,10 +43,12 @@ validate_indiff_inputs <- function(S0, K, T, N, sigma, r_cont, mu,
                                    lambda_I, kappa_I, eta, rho,
                                    lambda_bar_T, lambda_bar_P, kappa_J,
                                    k_A, k_B, psi_cost,
-                                   gamma, Gamma_Q, Gamma_J,
-                                   Q_bar, nu_bar, phi_cap, n_options,
+                                   gamma, Gamma_Q, ell_1,
+                                   Q_bar, nu_bar, eps_exec, phi_cap, n_options,
                                    I0, Q0, J0, control_set,
-                                   n_logS, n_I, n_Q, n_J, n_R, accum_sd) {
+                                   n_logS, n_I, n_Q, n_J, n_R, accum_sd,
+                                   monitoring = "continuous",
+                                   n_fixings = NULL) {
 
   if (!is.numeric(S0) || length(S0) != 1 || S0 <= 0) stop("S0 must be positive")
   if (!is.numeric(K) || length(K) != 1 || K <= 0) stop("K must be positive")
@@ -104,8 +110,11 @@ validate_indiff_inputs <- function(S0, K, T, N, sigma, r_cont, mu,
   if (!is.numeric(Gamma_Q) || length(Gamma_Q) != 1 || Gamma_Q < 0) {
     stop("Gamma_Q must be non-negative")
   }
-  if (!is.numeric(Gamma_J) || length(Gamma_J) != 1 || Gamma_J < 0) {
-    stop("Gamma_J must be non-negative")
+  if (!is.numeric(ell_1) || length(ell_1) != 1 || ell_1 < 0) {
+    stop("ell_1 must be non-negative")
+  }
+  if (!is.numeric(eps_exec) || length(eps_exec) != 1 || eps_exec < 0) {
+    stop("eps_exec must be non-negative")
   }
 
   if (!is.numeric(Q_bar) || length(Q_bar) != 1 || Q_bar <= 0) {
@@ -135,11 +144,11 @@ validate_indiff_inputs <- function(S0, K, T, N, sigma, r_cont, mu,
   }
 
   exec_price0 <- S0 + lambda_bar_P * Q0 + lambda_bar_T * J0
-  if (exec_price0 <= 0) {
+  if (exec_price0 < eps_exec) {
     stop(sprintf(
       paste0("Initial execution price S0 + lambda_bar_P*Q0 + lambda_bar_T*J0 ",
-             "= %.4f must be positive"),
-      exec_price0
+             "= %.4f must be at least eps_exec = %.4g"),
+      exec_price0, eps_exec
     ))
   }
 
@@ -161,6 +170,30 @@ validate_indiff_inputs <- function(S0, K, T, N, sigma, r_cont, mu,
 
   if (!is.numeric(accum_sd) || length(accum_sd) != 1 || accum_sd <= 0) {
     stop("accum_sd must be positive")
+  }
+
+  # Discrete monitoring places the fixings at t_k = k T / M. Requiring M to
+  # divide N puts every fixing exactly on a time-grid node, rather than snapping
+  # it silently to the nearest one.
+  if (identical(monitoring, "discrete")) {
+    if (is.null(n_fixings)) {
+      stop("n_fixings is required when monitoring = \"discrete\"")
+    }
+    if (!is.numeric(n_fixings) || length(n_fixings) != 1 ||
+        n_fixings != as.integer(n_fixings) || n_fixings < 1) {
+      stop("n_fixings must be a positive integer")
+    }
+    if (n_fixings > N) {
+      stop(sprintf("n_fixings = %d must not exceed N = %d",
+                   as.integer(n_fixings), as.integer(N)))
+    }
+    if (N %% as.integer(n_fixings) != 0) {
+      stop(sprintf(
+        paste0("n_fixings = %d must divide N = %d exactly so that every ",
+               "fixing date falls on a time-grid node"),
+        as.integer(n_fixings), as.integer(N)
+      ))
+    }
   }
 
   if (!is.function(eta)) {

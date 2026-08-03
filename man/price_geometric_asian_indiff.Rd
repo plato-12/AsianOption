@@ -24,9 +24,10 @@ price_geometric_asian_indiff(
   psi_cost = 1,
   gamma = 0.05,
   Gamma_Q = 1,
-  Gamma_J = 0.1,
+  ell_1 = 0,
   Q_bar = 2,
   nu_bar = 4,
+  eps_exec = 1e-06 * S0,
   phi_cap = NULL,
   n_options = 1,
   I0 = 0,
@@ -42,6 +43,8 @@ price_geometric_asian_indiff(
   n_Z = NULL,
   option_type = c("call", "put"),
   accum_rule = c("trapezoid", "left"),
+  monitoring = c("continuous", "discrete"),
+  n_fixings = NULL,
   accum_sd = 5,
   grid_drift = TRUE,
   store_policy = FALSE,
@@ -87,12 +90,19 @@ vector, or function of t. Defaults to \code{r_cont}.}
 
 \item{gamma}{Absolute risk aversion of the dealer (positive).}
 
-\item{Gamma_Q, Gamma_J}{Terminal liquidation penalties on inventory and on
-the dealer impact state.}
+\item{Gamma_Q}{Quadratic terminal liquidation penalty on inventory.}
+
+\item{ell_1}{Linear terminal liquidation penalty on inventory, the
+\eqn{\ell_1} of \eqn{L(q) = \ell_1|q| + (\Gamma_Q/2)q^2}. Defaults to 0,
+which gives the purely quadratic charge.}
 
 \item{Q_bar}{Inventory bound; the grid is exactly \eqn{[-\bar Q, \bar Q]}.}
 
 \item{nu_bar}{Trading-rate bound used to build the default control set.}
+
+\item{eps_exec}{Floor the execution price must clear for a trade to be
+admissible, both at the current node and one step ahead on either price
+branch. Defaults to \code{1e-6 * S0}.}
 
 \item{phi_cap}{Optional cap on the option payoff; \code{NULL} for no cap.
 Irrelevant for puts, whose payoff is already bounded.}
@@ -127,9 +137,19 @@ interface. When supplied it takes precedence.}
 
 \item{option_type}{\code{"call"} (default) or \code{"put"}.}
 
-\item{accum_rule}{Quadrature for the running accumulator: \code{"trapezoid"}
-(default) or \code{"left"}, the latter matching the plain left-endpoint
-rule at the cost of an O(dt) error in the variance of the average.}
+\item{accum_rule}{Quadrature for the running accumulator under continuous
+monitoring: \code{"trapezoid"} (default) or \code{"left"}, the latter
+matching the plain left-endpoint rule at the cost of an O(dt) error in the
+variance of the average. Ignored when \code{monitoring = "discrete"}.}
+
+\item{monitoring}{\code{"continuous"} (default) averages over the whole
+path; \code{"discrete"} averages over \code{n_fixings} contractual fixing
+dates \eqn{t_k = kT/M}, \eqn{k = 1, \ldots, M}, updating the accumulator
+only on those dates.}
+
+\item{n_fixings}{Number of equally spaced fixing dates. Required when
+\code{monitoring = "discrete"} and ignored otherwise. Must divide \code{N}
+exactly, so that every fixing lands on a time-grid node.}
 
 \item{accum_sd}{Accumulator grid half-width in standard deviations of the
 running average, capped by the reachable-set bound.}

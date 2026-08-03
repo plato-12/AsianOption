@@ -24,8 +24,9 @@ indiff_bellman_engine_cpp(
   psi_cost,
   gamma_ra,
   Gamma_Q,
-  Gamma_J,
+  ell_1,
   Q_bar,
+  eps_exec,
   phi_cap,
   n_opt,
   I0,
@@ -41,6 +42,8 @@ indiff_bellman_engine_cpp(
   option_type,
   theta,
   accum_rule,
+  monitor_mode,
+  fix_w,
   accum_sd,
   grid_drift,
   store_policy,
@@ -68,9 +71,12 @@ indiff_bellman_engine_cpp(
 
 \item{gamma_ra}{Absolute risk aversion.}
 
-\item{Gamma_Q, Gamma_J}{Terminal liquidation penalties.}
+\item{Gamma_Q, ell_1}{Quadratic and linear terminal liquidation charges on
+inventory. There is no terminal charge on the dealer impact state.}
 
 \item{Q_bar}{Inventory bound.}
+
+\item{eps_exec}{Execution-price floor of the admissible set.}
 
 \item{phi_cap}{Payoff cap; values <= 0 mean no cap.}
 
@@ -89,7 +95,14 @@ to size the log-price grid so that one shock spans exactly one cell.}
 
 \item{theta}{-1 (long), 0 (baseline) or +1 (short).}
 
-\item{accum_rule}{0 = left-endpoint, 1 = trapezoidal accumulator quadrature.}
+\item{accum_rule}{0 = left-endpoint, 1 = trapezoidal accumulator quadrature.
+Ignored under discrete monitoring.}
+
+\item{monitor_mode}{0 = continuous monitoring, 1 = discrete fixing dates.}
+
+\item{fix_w}{Length-N vector of accumulator weights; entry \code{m} is
+applied at step \code{m} and is non-zero only when \code{t_{m+1}} is a
+fixing date. Used only when \code{monitor_mode = 1}.}
 
 \item{accum_sd}{Accumulator grid half-width in standard deviations of the
 running average; capped by the reachable-set bound.}

@@ -15,7 +15,7 @@ frictionless <- function(fun, ..., k = 1e-4, gamma = 1e-3, N = 25L,
       lambda_I = 0, kappa_I = 1, eta = 0, rho = 0,
       lambda_bar_T = 0, lambda_bar_P = 0, kappa_J = 1,
       k_A = k, k_B = k, psi_cost = 1,
-      gamma = gamma, Gamma_Q = 1e-4, Gamma_J = 1e-4,
+      gamma = gamma, Gamma_Q = 1e-4, ell_1 = 0,
       Q_bar = 10, nu_bar = 10,
       n_I = 5L, n_Q = 7L, n_J = 7L, n_R = n_R, n_controls = 7L,
       ...)
@@ -204,7 +204,7 @@ test_that("quotes are per unit of notional and rise with position size", {
   skip_on_cran()
   args <- list(S0 = 100, K = 100, T = 1, N = 8L, sigma = 0.2, r_cont = 0.05,
                gamma = 1e-4, lambda_bar_T = 0, lambda_bar_P = 0,
-               k_A = 1e-4, k_B = 1e-4, Gamma_Q = 1e-4, Gamma_J = 1e-4,
+               k_A = 1e-4, k_B = 1e-4, Gamma_Q = 1e-4, ell_1 = 0,
                Q_bar = 10, nu_bar = 10,
                n_I = 5L, n_Q = 7L, n_J = 7L, n_R = 41L, n_controls = 7L)
   one <- do.call(price_geometric_asian_indiff, args)
@@ -220,7 +220,7 @@ test_that("the trapezoidal accumulator beats the left-endpoint rule", {
   skip_on_cran()
   args <- list(S0 = 100, K = 100, T = 1, N = 10L, sigma = 0.2, r_cont = 0.05,
                gamma = 1e-3, lambda_bar_T = 0, lambda_bar_P = 0, eta = 0,
-               k_A = 1e-4, k_B = 1e-4, Gamma_Q = 1e-4, Gamma_J = 1e-4,
+               k_A = 1e-4, k_B = 1e-4, Gamma_Q = 1e-4, ell_1 = 0,
                Q_bar = 10, nu_bar = 10,
                n_I = 5L, n_Q = 7L, n_J = 7L, n_R = 121L, n_controls = 7L)
   target <- kv_geometric_pv(100, 100, 0.05, 0.2, 1)
@@ -237,7 +237,7 @@ test_that("an unaligned log-price grid is reported and inflates the price", {
   skip_on_cran()
   args <- list(S0 = 100, K = 100, T = 1, N = 25L, sigma = 0.2, r_cont = 0.05,
                gamma = 1e-3, lambda_bar_T = 0, lambda_bar_P = 0, eta = 0,
-               k_A = 1e-4, k_B = 1e-4, Gamma_Q = 1e-4, Gamma_J = 1e-4,
+               k_A = 1e-4, k_B = 1e-4, Gamma_Q = 1e-4, ell_1 = 0,
                Q_bar = 10, nu_bar = 10,
                n_I = 5L, n_Q = 7L, n_J = 7L, n_R = 121L, n_controls = 7L)
   target <- kv_geometric_pv(100, 100, 0.05, 0.2, 1)
@@ -255,4 +255,55 @@ test_that("an unaligned log-price grid is reported and inflates the price", {
   # Interpolating the shock spreads mass over two nodes and adds variance.
   expect_gt(bad$ask_price, auto$ask_price)
   expect_lt(abs(auto$ask_price / target - 1), abs(bad$ask_price / target - 1))
+})
+
+# --- discrete monitoring (note_v2 eq. 4) -------------------------------------
+
+test_that("a single fixing at T reduces the Asian to a European", {
+  skip_on_cran()
+  # With M = 1 the accumulator picks up T*h(S_T) at the last step only, so
+  # a_T/T = log(S_T/S0) and the geometric payoff is (S_T - K)^+ exactly.  In
+  # the frictionless, near-risk-neutral limit both quotes must therefore land
+  # on Black-Scholes, which is a far tighter target than Kemna-Vorst.
+  res <- frictionless(price_geometric_asian_indiff,
+                      monitoring = "discrete", n_fixings = 1L, n_R = 241L)
+  target <- price_black_scholes_call(100, 100, 0.05, 0.2, 1)
+
+  expect_equal(res$ask_price, target, tolerance = 0.05)
+  expect_equal(res$bid_price, target, tolerance = 0.05)
+  # A European is worth strictly more than the average-price option, whose
+  # effective volatility is roughly sigma/sqrt(3).
+  expect_gt(res$mid_price, kv_geometric_pv(100, 100, 0.05, 0.2, 1))
+})
+
+test_that("discrete monitoring converges to continuous at rate O(1/M)", {
+  skip_on_cran()
+  cont <- frictionless(price_geometric_asian_indiff, N = 24L, n_R = 241L)
+  err <- function(M) {
+    res <- frictionless(price_geometric_asian_indiff, N = 24L, n_R = 241L,
+                        monitoring = "discrete", n_fixings = M)
+    abs(res$mid_price - cont$mid_price)
+  }
+  e2 <- err(2L); e6 <- err(6L); e24 <- err(24L)
+
+  expect_gt(e2, e6)
+  expect_gt(e6, e24)
+  # The gap is O(1/M), so err(M) * M is constant and err(2)/err(24) -> 12.
+  # It does not vanish at M = N: the discrete rule is a right-endpoint sum and
+  # the continuous one a trapezoid, and the two differ by (dt/2)(h_N - h_0).
+  # Asserting the rate rather than an absolute tolerance is what pins down the
+  # accumulator; a wrong fixing weight or a misplaced fixing breaks it.
+  expect_equal(e2 / e24, 12, tolerance = 0.25)
+  expect_equal(e6 / e24, 3, tolerance = 0.25)
+})
+
+test_that("more fixings lower the geometric Asian price", {
+  skip_on_cran()
+  # Averaging over more dates cuts the variance of the average, so the call
+  # is worth less.  This is the sign the discrete accumulator must reproduce.
+  mids <- vapply(c(1L, 2L, 4L, 12L), function(M) {
+    frictionless(price_geometric_asian_indiff, N = 12L, n_R = 241L,
+                 monitoring = "discrete", n_fixings = M)$mid_price
+  }, numeric(1))
+  expect_true(all(diff(mids) < 0))
 })

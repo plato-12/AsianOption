@@ -24,9 +24,10 @@ validate_indiff_inputs(
   psi_cost,
   gamma,
   Gamma_Q,
-  Gamma_J,
+  ell_1,
   Q_bar,
   nu_bar,
+  eps_exec,
   phi_cap,
   n_options,
   I0,
@@ -38,7 +39,9 @@ validate_indiff_inputs(
   n_Q,
   n_J,
   n_R,
-  accum_sd
+  accum_sd,
+  monitoring = "continuous",
+  n_fixings = NULL
 )
 }
 \arguments{
@@ -76,11 +79,15 @@ validate_indiff_inputs(
 
 \item{gamma}{Absolute risk aversion of the dealer.}
 
-\item{Gamma_Q, Gamma_J}{Terminal liquidation penalties.}
+\item{Gamma_Q}{Quadratic terminal liquidation penalty on inventory.}
+
+\item{ell_1}{Linear terminal liquidation penalty on inventory.}
 
 \item{Q_bar}{Inventory bound.}
 
 \item{nu_bar}{Trading-rate bound.}
+
+\item{eps_exec}{Execution-price floor of the admissible set.}
 
 \item{phi_cap}{Optional payoff cap.}
 
@@ -93,6 +100,10 @@ validate_indiff_inputs(
 \item{n_logS, n_I, n_Q, n_J, n_R}{Grid sizes.}
 
 \item{accum_sd}{Accumulator grid half-width in standard deviations.}
+
+\item{monitoring}{\code{"continuous"} or \code{"discrete"}.}
+
+\item{n_fixings}{Number of fixing dates when monitoring is discrete.}
 }
 \value{
 \code{NULL}, invisibly. Throws an error if validation fails.

@@ -24,9 +24,10 @@ price_arithmetic_asian_indiff(
   psi_cost = 1,
   gamma = 0.05,
   Gamma_Q = 1,
-  Gamma_J = 0.1,
+  ell_1 = 0,
   Q_bar = 2,
   nu_bar = 4,
+  eps_exec = 1e-06 * S0,
   phi_cap = NULL,
   n_options = 1,
   I0 = 0,
@@ -41,6 +42,8 @@ price_arithmetic_asian_indiff(
   n_R = 121,
   option_type = c("call", "put"),
   accum_rule = c("trapezoid", "left"),
+  monitoring = c("continuous", "discrete"),
+  n_fixings = NULL,
   accum_sd = 5,
   grid_drift = TRUE,
   store_policy = FALSE,
@@ -86,12 +89,19 @@ vector, or function of t. Defaults to \code{r_cont}.}
 
 \item{gamma}{Absolute risk aversion of the dealer (positive).}
 
-\item{Gamma_Q, Gamma_J}{Terminal liquidation penalties on inventory and on
-the dealer impact state.}
+\item{Gamma_Q}{Quadratic terminal liquidation penalty on inventory.}
+
+\item{ell_1}{Linear terminal liquidation penalty on inventory, the
+\eqn{\ell_1} of \eqn{L(q) = \ell_1|q| + (\Gamma_Q/2)q^2}. Defaults to 0,
+which gives the purely quadratic charge.}
 
 \item{Q_bar}{Inventory bound; the grid is exactly \eqn{[-\bar Q, \bar Q]}.}
 
 \item{nu_bar}{Trading-rate bound used to build the default control set.}
+
+\item{eps_exec}{Floor the execution price must clear for a trade to be
+admissible, both at the current node and one step ahead on either price
+branch. Defaults to \code{1e-6 * S0}.}
 
 \item{phi_cap}{Optional cap on the option payoff; \code{NULL} for no cap.
 Irrelevant for puts, whose payoff is already bounded.}
@@ -123,9 +133,19 @@ remaining discretisation error in the price level; see
 
 \item{option_type}{\code{"call"} (default) or \code{"put"}.}
 
-\item{accum_rule}{Quadrature for the running accumulator: \code{"trapezoid"}
-(default) or \code{"left"}, the latter matching the plain left-endpoint
-rule at the cost of an O(dt) error in the variance of the average.}
+\item{accum_rule}{Quadrature for the running accumulator under continuous
+monitoring: \code{"trapezoid"} (default) or \code{"left"}, the latter
+matching the plain left-endpoint rule at the cost of an O(dt) error in the
+variance of the average. Ignored when \code{monitoring = "discrete"}.}
+
+\item{monitoring}{\code{"continuous"} (default) averages over the whole
+path; \code{"discrete"} averages over \code{n_fixings} contractual fixing
+dates \eqn{t_k = kT/M}, \eqn{k = 1, \ldots, M}, updating the accumulator
+only on those dates.}
+
+\item{n_fixings}{Number of equally spaced fixing dates. Required when
+\code{monitoring = "discrete"} and ignored otherwise. Must divide \code{N}
+exactly, so that every fixing lands on a time-grid node.}
 
 \item{accum_sd}{Accumulator grid half-width in standard deviations of the
 running average, capped by the reachable-set bound.}
@@ -179,13 +199,21 @@ and executing at rate \eqn{\nu} costs
           + k_A (\nu^+)^{1+\psi} + k_B (\nu^-)^{1+\psi}.}
 
 For \eqn{\theta \in \{-1, 0, +1\}} the terminal value is
-\deqn{v^\theta_N = q s - \tfrac{\Gamma_Q}{2}q^2 - \tfrac{\Gamma_J}{2}j^2
-                   - \theta\, n\, \Phi(a),}
+\deqn{v^\theta_N = q s - L(q) - \theta\, n\, \Phi(a), \qquad
+      L(q) = \ell_1 |q| + \tfrac{\Gamma_Q}{2}q^2,}
 and the backward recursion maximises
 \deqn{-\beta_m \delta_r g - \frac{1}{\gamma}\log \sum_{\xi\zeta}
        p_{\xi\zeta} \exp(-\gamma v^\theta_{m+1}(s', i', q', j', a'))}
-over admissible \eqn{\nu}. The quotes are
-\eqn{P_{ask} = (v^0_0 - v^+_0)/e^{rT}} and
+over the admissible set
+\deqn{U_m(s, i, q, j) = \{\nu : |q'| \le \bar Q,\;
+      s + \bar\lambda_P q + \bar\lambda_T j \ge \epsilon,\;
+      s'_\xi + \bar\lambda_P q' + \bar\lambda_T j' \ge \epsilon
+      \textrm{ for } \xi \in \{-1, +1\}\}.}
+The second condition is forward-looking: a trade is admissible only if the
+execution price still clears \eqn{\epsilon = } \code{eps_exec} after one
+step, along both price branches. There is no terminal charge on \eqn{j};
+the dealer's transient impact enters only through pre-expiry execution
+costs. The quotes are \eqn{P_{ask} = (v^0_0 - v^+_0)/e^{rT}} and
 \eqn{P_{bid} = (v^-_0 - v^0_0)/e^{rT}}, divided by \code{n_options}.
 
 The discrete, compact-grid model is the primitive. Under a continuous state

@@ -6,14 +6,26 @@
 //   i'_zeta = i - kappa_I*i*dt + eta(t_m)*sqrt(dt)*zeta
 //   q'      = q + nu*dt
 //   j'      = j + (-kappa_J*j + nu)*dt
-//   a'      = a + h(s)*dt
+//   a'      = a + h(s)*dt          (continuous monitoring)
+//   a'      = a + w_m*h(s')        (discrete monitoring, w_m = 0 off a fixing)
 //   g       = (s + lambda_bar_P*q + lambda_bar_T*j)*nu
 //               + k_A*(nu^+)^(1+psi) + k_B*(nu^-)^(1+psi)
 //
-//   v^theta_N = q*s - (Gamma_Q/2)q^2 - (Gamma_J/2)j^2 - theta*n_opt*Phi(a)
+//   v^theta_N = q*s - ell_1*|q| - (Gamma_Q/2)q^2 - theta*n_opt*Phi(a)
 //   v^theta_m = max_{nu in U_m} { -beta_m*delta_r*g
 //                 - (1/gamma) log sum_{xi,zeta} p_{xi,zeta}
 //                     exp(-gamma * Interp[v^theta_{m+1}](s', i', q', j', a')) }
+//
+// with the admissible set
+//
+//   U_m(s,i,q,j) = { nu : |q'| <= Q_bar,  s + lambda_bar_P*q + lambda_bar_T*j
+//                          >= eps,  s'_xi + lambda_bar_P*q' + lambda_bar_T*j'
+//                          >= eps for xi in {-1,+1} }.
+//
+// The second condition is forward-looking: a trade is admissible only if the
+// execution price still clears eps after one step, along both price branches.
+// There is no terminal charge on j; the dealer's transient impact enters only
+// through the pre-expiry execution costs.
 //
 // Two interchangeable code paths compute the same recursion:
 //   engine_mode = 1 ("reference")  straight transcription, one 5-linear
@@ -157,15 +169,29 @@ static inline double accum_h(double logs, double logS0, int asian_type) {
   return (asian_type == 0) ? std::exp(logs - logS0) : (logs - logS0);
 }
 
-// Accumulator successor.  accum_rule 0 is the left-endpoint rule written in
-// design.md Section 2; rule 1 is the trapezoid rule, which discretises the same
-// integral a_T = int_0^T h(S_u) du but misstates Var(a_T) by O(dt^2) instead of
-// O(dt).  That matters because the payoff sees a only through its distribution.
+// Accumulator successor.
+//
+// Under continuous monitoring (monitor_mode 0) the accumulator discretises
+// a_T = int_0^T h(S_u) du: accum_rule 0 is the left-endpoint rule, rule 1 the
+// trapezoid rule, which misstates Var(a_T) by O(dt^2) instead of O(dt).  That
+// matters because the payoff sees a only through its distribution.
+//
+// Under discrete monitoring (monitor_mode 1) the accumulator instead jumps only
+// at the contractual fixing dates: a picks up w_m*h(S_{t_{m+1}}) where w_m is
+// zero unless t_{m+1} is a fixing.  With M equally spaced fixings and
+// w_m = T/M the payoff normalisation is unchanged -- S0*a/T is the mean of the
+// M fixings and S0*exp(a/T) their geometric mean -- so indiff_payoff needs no
+// discrete-monitoring branch.
+//
 // logs_next must already be clamped to the successor grid so that the
 // accumulator bound still holds.
 static inline double accum_next(double a, double logs, double logs_next,
                                 double logS0, int asian_type, int accum_rule,
-                                double dt) {
+                                int monitor_mode, double fix_w_m, double dt) {
+  if (monitor_mode == 1) {
+    if (fix_w_m == 0.0) return a;
+    return a + fix_w_m * accum_h(logs_next, logS0, asian_type);
+  }
   double h0 = accum_h(logs, logS0, asian_type);
   if (accum_rule == 0) return a + h0 * dt;
   double h1 = accum_h(logs_next, logS0, asian_type);
@@ -217,11 +243,13 @@ struct IndiffSpec {
   double lambda_I, kappa_I, rho;
   double lambda_bar_T, lambda_bar_P, kappa_J;
   double k_A, k_B, psi_cost;
-  double gamma_ra, Gamma_Q, Gamma_J;
+  double gamma_ra, Gamma_Q, ell_1;
   double Q_bar, phi_cap, n_opt;
+  double eps_exec;      // execution-price floor of the admissible set
   double I0, Q0, J0;
   int asian_type, option_type, theta;
   int accum_rule;       // 0 = left endpoint, 1 = trapezoid
+  int monitor_mode;     // 0 = continuous, 1 = discrete fixing dates
   double accum_sd;      // accumulator half-width in sd of the running average
   int grid_drift;       // 1 = log-price grid tracks the deterministic drift
 };
@@ -303,6 +331,7 @@ static double interp5(const double* V, const IndiffGrids& G,
 static IndiffGrids build_grids(const IndiffSpec& S,
                                const std::vector<double>& mu_vec,
                                const std::vector<double>& eta_vec,
+                               const std::vector<double>& fix_w,
                                const std::vector<double>& controls,
                                int n_logS, int n_I, int n_Q, int n_J, int n_R) {
   IndiffGrids G;
@@ -406,8 +435,24 @@ static IndiffGrids build_grids(const IndiffSpec& S,
   // is kept as a hard cap so the grid never widens beyond it.  Under the
   // exogenous dynamics (1/T) int (log S_u - log S0) du has standard deviation
   // sigma*sqrt(T/3) and mean bounded by (mu_max + |lambda_I|*I_bound)*T/2.
-  double drift_a = (mu_absmax + std::abs(S.lambda_I) * I_bound) * S.T_mat / 2.0;
-  double sd_a = S.sigma * std::sqrt(S.T_mat / 3.0);
+  //
+  // Under discrete monitoring the average is over M fixings at t_k = kT/M
+  // rather than over the whole path, and Var((1/M) sum_k W_{t_k}) =
+  // T(M+1)(2M+1)/(6M^2), which exceeds the continuous T/3 and does so by a
+  // factor of 3 at M = 1.  Using the continuous variance there would leave the
+  // accumulator grid far too narrow, so the exact discrete factors are used.
+  double var_fac = 1.0 / 3.0, mean_fac = 0.5;
+  if (S.monitor_mode == 1) {
+    double M = 0.0;
+    for (size_t m = 0; m < fix_w.size(); m++) if (fix_w[m] != 0.0) M += 1.0;
+    if (M > 0.0) {
+      var_fac  = (M + 1.0) * (2.0 * M + 1.0) / (6.0 * M * M);
+      mean_fac = (M + 1.0) / (2.0 * M);
+    }
+  }
+  double drift_a = (mu_absmax + std::abs(S.lambda_I) * I_bound)
+                     * S.T_mat * mean_fac;
+  double sd_a = S.sigma * std::sqrt(S.T_mat * var_fac);
   double k_sd = (S.accum_sd > 0.0) ? S.accum_sd : 5.0;
 
   if (n_R % 2 == 0) n_R += 1;              // keep a = 0 on the grid
@@ -446,10 +491,11 @@ static void fill_terminal(std::vector<double>& V, const IndiffSpec& S,
     for (int ii = 0; ii < G.n_I; ii++) {
       for (int iq = 0; iq < G.n_Q; iq++) {
         double q = G.Q[iq];
-        double q_term = q * s - 0.5 * S.Gamma_Q * q * q;
+        // Terminal liquidation charge L(q) = ell_1*|q| + (Gamma_Q/2)q^2.  There
+        // is no charge on j: the dealer's transient impact enters only through
+        // the pre-expiry execution costs, so the terminal layer is flat in j.
+        double base = q * s - S.ell_1 * std::abs(q) - 0.5 * S.Gamma_Q * q * q;
         for (int ij = 0; ij < G.n_J; ij++) {
-          double j = G.J[ij];
-          double base = q_term - 0.5 * S.Gamma_J * j * j;
           for (int ia = 0; ia < G.n_R; ia++) {
             double phi = indiff_payoff(G.R[ia], S.S0, S.K, S.T_mat,
                                        S.asian_type, S.option_type, S.phi_cap);
@@ -477,12 +523,15 @@ struct StepTables {
   std::vector<char> feasQ;          // iq * nc + c : |q'| <= Q_bar
   std::vector<double> cost_c;       // per-control execution cost
   std::vector<double> Sval;         // exp(absolute log price) at this step
+  std::vector<double> Snext;        // (is * n_I + ii) * 2 + xi_idx : s'_xi
+  std::vector<double> Qn;           // iq * nc + c : q'
+  std::vector<double> Jn;           // ij * nc + c : j'
 };
 
 static void build_step_tables(StepTables& tb, const IndiffSpec& S,
                               const IndiffGrids& G,
                               const std::vector<double>& controls,
-                              int m, double eta_m,
+                              int m, double eta_m, double fix_w_m,
                               double dt, double sqdt, ClampCount& cc) {
   const int nc = static_cast<int>(controls.size());
 
@@ -494,6 +543,9 @@ static void build_step_tables(StepTables& tb, const IndiffSpec& S,
   tb.feasQ.resize(static_cast<size_t>(G.n_Q) * nc);
   tb.cost_c.resize(static_cast<size_t>(nc));
   tb.Sval.resize(static_cast<size_t>(G.n_logS));
+  tb.Snext.resize(static_cast<size_t>(G.n_logS) * G.n_I * 2);
+  tb.Qn.resize(static_cast<size_t>(G.n_Q) * nc);
+  tb.Jn.resize(static_cast<size_t>(G.n_J) * nc);
 
   for (int c = 0; c < nc; c++)
     tb.cost_c[c] = exec_cost(controls[c], S.k_A, S.k_B, S.psi_cost);
@@ -513,8 +565,15 @@ static void build_step_tables(StepTables& tb, const IndiffSpec& S,
         tb.brS[(static_cast<size_t>(is) * G.n_I + ii) * 2 + xi_idx] = b;
         cc.S_tot++; if (b.clamped) cc.S++;
 
+        // s'_xi for the forward admissibility test.  This is the analytic
+        // successor of the model, so it is taken from the unclamped offset:
+        // the constraint is a statement about the price process, not about
+        // where the grid happens to end.
+        tb.Snext[(static_cast<size_t>(is) * G.n_I + ii) * 2 + xi_idx] =
+          std::exp(G.logS0 + G.shift[m + 1] + offn);
+
         // Successor log price, clamped to the successor grid, for the
-        // trapezoidal accumulator.
+        // trapezoidal and discrete-fixing accumulators.
         double offc = offn;
         if (offc < G.off_lo) offc = G.off_lo;
         if (offc > off_hi)   offc = off_hi;
@@ -522,7 +581,8 @@ static void build_step_tables(StepTables& tb, const IndiffSpec& S,
 
         for (int ia = 0; ia < G.n_R; ia++) {
           double an = accum_next(G.R[ia], logs_m, logs_next, G.logS0,
-                                 S.asian_type, S.accum_rule, dt);
+                                 S.asian_type, S.accum_rule, S.monitor_mode,
+                                 fix_w_m, dt);
           IndiffBracket ba = indiff_bracket(G.R_lo, G.R_dx, G.n_R, an);
           tb.brA[((static_cast<size_t>(is) * G.n_I + ii) * G.n_R + ia) * 2
                  + xi_idx] = ba;
@@ -547,6 +607,7 @@ static void build_step_tables(StepTables& tb, const IndiffSpec& S,
     for (int c = 0; c < nc; c++) {
       double qn = step_Q(G.Q[iq], controls[c], dt);
       size_t o = static_cast<size_t>(iq) * nc + c;
+      tb.Qn[o] = qn;
       tb.feasQ[o] = (std::abs(qn) <= S.Q_bar + q_tol) ? 1 : 0;
       IndiffBracket b = indiff_bracket(G.Q_lo, G.Q_dx, G.n_Q, qn);
       tb.brQ[o] = b;
@@ -557,24 +618,52 @@ static void build_step_tables(StepTables& tb, const IndiffSpec& S,
   for (int ij = 0; ij < G.n_J; ij++) {
     for (int c = 0; c < nc; c++) {
       double jn = step_J(G.J[ij], controls[c], S.kappa_J, dt);
+      size_t o = static_cast<size_t>(ij) * nc + c;
+      tb.Jn[o] = jn;
       IndiffBracket b = indiff_bracket(G.J_lo, G.J_dx, G.n_J, jn);
-      tb.brJ[static_cast<size_t>(ij) * nc + c] = b;
+      tb.brJ[o] = b;
       cc.J_tot++; if (b.clamped) cc.J++;
     }
   }
 }
 
+// Candidate value of one control at one node in the cached layout.  Factored
+// out so that the empty-admissible-set fallback evaluates nu = 0 through
+// exactly the same arithmetic as the main maximisation loop.
+static inline double cand_cached(const double* const* Qa, const double* p,
+                                 const IndiffBracket& bq,
+                                 const IndiffBracket& bj,
+                                 double gt_c, int n_J, double gamma_ra) {
+  double wq = bq.w, wj = bj.w;
+  double u00 = (1.0 - wq) * (1.0 - wj);
+  double u01 = (1.0 - wq) * wj;
+  double u10 = wq * (1.0 - wj);
+  double u11 = wq * wj;
+  size_t o00 = static_cast<size_t>(bq.lo) * n_J + bj.lo;
+  size_t o01 = o00 + 1;
+  size_t o10 = o00 + n_J;
+  size_t o11 = o10 + 1;
+
+  double vb[4];
+  for (int b = 0; b < 4; b++) {
+    const double* qa = Qa[b];
+    vb[b] = u00 * qa[o00] + u01 * qa[o01] + u10 * qa[o10] + u11 * qa[o11];
+  }
+  return gt_c + branch_ce(vb, p, gamma_ra);
+}
+
 // Cached backward step over a contiguous range of (log-price, impact) planes.
 //
-// Plane pl = is*n_I + ii writes only V_curr[idx(is, ii, ., ., .)] and reads
-// only V_next and the step tables, so the planes are independent: any partition
-// of [0, n_planes) into ranges reproduces the serial result bit for bit.  The
-// scratch buffers are local to the call, hence private to whichever thread runs
-// the range.
+// Plane pl = is*n_I + ii writes only V_curr[idx(is, ii, ., ., .)], its own slot
+// of infeas, and reads only V_next and the step tables, so the planes are
+// independent: any partition of [0, n_planes) into ranges reproduces the serial
+// result bit for bit.  The scratch buffers are local to the call, hence private
+// to whichever thread runs the range.
 static void backward_planes_cached(size_t pl_begin, size_t pl_end,
                                    std::vector<double>& V_curr,
                                    const std::vector<double>& V_next,
                                    std::vector<double>* policy,
+                                   std::vector<long long>& infeas,
                                    const IndiffSpec& S, const IndiffGrids& G,
                                    const StepTables& tb,
                                    const std::vector<double>& controls,
@@ -601,6 +690,13 @@ static void backward_planes_cached(size_t pl_begin, size_t pl_end,
       const int is = pl / G.n_I;
       const int ii = pl - is * G.n_I;
       const double s_val = tb.Sval[is];
+      long long n_infeas_pl = 0;
+
+      // s'_xi at this plane, for the forward leg of the admissibility test.
+      // It does not depend on (q, j, nu), so it is hoisted out entirely.
+      const double s_up = tb.Snext[(static_cast<size_t>(is) * G.n_I + ii) * 2];
+      const double s_dn =
+        tb.Snext[(static_cast<size_t>(is) * G.n_I + ii) * 2 + 1];
 
       // g(s, q, j, nu) and node admissibility do not depend on a or on the
       // branch, so they are hoisted above the (a, branch) loops.
@@ -610,7 +706,7 @@ static void backward_planes_cached(size_t pl_begin, size_t pl_end,
           double j = G.J[ij];
           double px = s_val + S.lambda_bar_P * q + S.lambda_bar_T * j;
           size_t qj = static_cast<size_t>(iq) * G.n_J + ij;
-          price_ok[qj] = (px > 0.0) ? 1 : 0;
+          price_ok[qj] = (px >= S.eps_exec) ? 1 : 0;
           double* gt = &gterm[qj * nc];
           for (int c = 0; c < nc; c++)
             gt[c] = -cash * (px * controls[c] + tb.cost_c[c]);
@@ -668,9 +764,11 @@ static void backward_planes_cached(size_t pl_begin, size_t pl_end,
         for (int iq = 0; iq < G.n_Q; iq++) {
           const IndiffBracket* brq = &tb.brQ[static_cast<size_t>(iq) * nc];
           const char* fq = &tb.feasQ[static_cast<size_t>(iq) * nc];
+          const double* qn = &tb.Qn[static_cast<size_t>(iq) * nc];
 
           for (int ij = 0; ij < G.n_J; ij++) {
             const IndiffBracket* brj = &tb.brJ[static_cast<size_t>(ij) * nc];
+            const double* jn = &tb.Jn[static_cast<size_t>(ij) * nc];
             size_t qj = static_cast<size_t>(iq) * G.n_J + ij;
             const double* gt = &gterm[qj * nc];
             bool ok = (price_ok[qj] != 0);
@@ -680,31 +778,26 @@ static void backward_planes_cached(size_t pl_begin, size_t pl_end,
 
             for (int c = 0; c < nc; c++) {
               if (!fq[c]) continue;
-              // A node whose execution price is non-positive admits no trade;
-              // only nu = 0, which executes nothing, remains.
-              if (!ok && c != c_zero) continue;
+              // note_v2 (21): the execution price must clear eps now, and must
+              // still clear it after one step along both price branches.
+              if (!ok) continue;
+              double pxn = S.lambda_bar_P * qn[c] + S.lambda_bar_T * jn[c];
+              if (s_up + pxn < S.eps_exec) continue;
+              if (s_dn + pxn < S.eps_exec) continue;
 
-              const IndiffBracket& bq = brq[c];
-              const IndiffBracket& bj = brj[c];
-              double wq = bq.w, wj = bj.w;
-              double u00 = (1.0 - wq) * (1.0 - wj);
-              double u01 = (1.0 - wq) * wj;
-              double u10 = wq * (1.0 - wj);
-              double u11 = wq * wj;
-              size_t o00 = static_cast<size_t>(bq.lo) * G.n_J + bj.lo;
-              size_t o01 = o00 + 1;
-              size_t o10 = o00 + G.n_J;
-              size_t o11 = o10 + 1;
-
-              double vb[4];
-              for (int b = 0; b < 4; b++) {
-                const double* qa = Qa[b];
-                vb[b] = u00 * qa[o00] + u01 * qa[o01]
-                      + u10 * qa[o10] + u11 * qa[o11];
-              }
-
-              double cand = gt[c] + branch_ce(vb, p, S.gamma_ra);
+              double cand = cand_cached(Qa, p, brq[c], brj[c], gt[c],
+                                        G.n_J, S.gamma_ra);
               if (cand > best) { best = cand; best_c = c; }
+            }
+
+            if (best == -std::numeric_limits<double>::infinity()) {
+              // Unlike the v1 admissible set, the v2 one can be empty. The
+              // dealer then stands still: nu = 0 executes nothing, so it needs
+              // no execution price. Counted, not silently applied.
+              best = cand_cached(Qa, p, brq[c_zero], brj[c_zero], gt[c_zero],
+                                 G.n_J, S.gamma_ra);
+              best_c = c_zero;
+              n_infeas_pl++;
             }
 
             size_t id = G.idx(is, ii, iq, ij, ia);
@@ -713,6 +806,8 @@ static void backward_planes_cached(size_t pl_begin, size_t pl_end,
           }
         }
       }
+
+      infeas[pl_u] = n_infeas_pl;
     }
   }
 }
@@ -726,6 +821,7 @@ struct BackwardStepWorker : public RcppParallel::Worker {
   std::vector<double>& V_curr;
   const std::vector<double>& V_next;
   std::vector<double>* policy;
+  std::vector<long long>& infeas;
   const IndiffSpec& S;
   const IndiffGrids& G;
   const StepTables& tb;
@@ -736,16 +832,18 @@ struct BackwardStepWorker : public RcppParallel::Worker {
   BackwardStepWorker(std::vector<double>& V_curr_,
                      const std::vector<double>& V_next_,
                      std::vector<double>* policy_,
+                     std::vector<long long>& infeas_,
                      const IndiffSpec& S_, const IndiffGrids& G_,
                      const StepTables& tb_,
                      const std::vector<double>& controls_,
                      int c_zero_, double cash_)
-    : V_curr(V_curr_), V_next(V_next_), policy(policy_), S(S_), G(G_),
-      tb(tb_), controls(controls_), c_zero(c_zero_), cash(cash_) {}
+    : V_curr(V_curr_), V_next(V_next_), policy(policy_), infeas(infeas_),
+      S(S_), G(G_), tb(tb_), controls(controls_), c_zero(c_zero_),
+      cash(cash_) {}
 
   void operator()(std::size_t begin, std::size_t end) {
-    backward_planes_cached(begin, end, V_curr, V_next, policy, S, G, tb,
-                           controls, c_zero, cash);
+    backward_planes_cached(begin, end, V_curr, V_next, policy, infeas, S, G,
+                           tb, controls, c_zero, cash);
   }
 };
 
@@ -759,6 +857,7 @@ struct BackwardStepWorker : public RcppParallel::Worker {
 static void backward_step_cached(std::vector<double>& V_curr,
                                  const std::vector<double>& V_next,
                                  std::vector<double>* policy,
+                                 std::vector<long long>& infeas,
                                  const IndiffSpec& S, const IndiffGrids& G,
                                  const StepTables& tb,
                                  const std::vector<double>& controls,
@@ -766,8 +865,8 @@ static void backward_step_cached(std::vector<double>& V_curr,
   const size_t n_planes = static_cast<size_t>(G.n_logS) * G.n_I;
 
   if (n_threads == 1 || n_planes < 2 || RcppParallel::isProcessForkedChild()) {
-    backward_planes_cached(0, n_planes, V_curr, V_next, policy, S, G, tb,
-                           controls, c_zero, cash);
+    backward_planes_cached(0, n_planes, V_curr, V_next, policy, infeas, S, G,
+                           tb, controls, c_zero, cash);
     return;
   }
 
@@ -778,10 +877,46 @@ static void backward_step_cached(std::vector<double>& V_curr,
   size_t grain = n_planes / (static_cast<size_t>(threads) * 4);
   if (grain < 1) grain = 1;
 
-  BackwardStepWorker worker(V_curr, V_next, policy, S, G, tb, controls,
+  BackwardStepWorker worker(V_curr, V_next, policy, infeas, S, G, tb, controls,
                             c_zero, cash);
   RcppParallel::parallelFor(0, n_planes, worker, grain,
                             (n_threads > 0) ? n_threads : -1);
+}
+
+// Candidate value of one control at one node, reference layout.  As in the
+// cached path this is factored out so the empty-admissible-set fallback runs
+// the same arithmetic as the main maximisation loop.
+static inline double cand_reference(const double* Vn, const IndiffSpec& S,
+                                    const IndiffGrids& G, const double* p,
+                                    int is, int m, double i_val,
+                                    double logs_m, double a, double px,
+                                    double nu, double qn, double jn,
+                                    double cash, double eta_m, double fix_w_m,
+                                    double dt, double sqdt, double off_hi) {
+  IndiffBracket bq = indiff_bracket(G.Q_lo, G.Q_dx, G.n_Q, qn);
+  IndiffBracket bj = indiff_bracket(G.J_lo, G.J_dx, G.n_J, jn);
+
+  double vb[4];
+  for (int b = 0; b < 4; b++) {
+    double offn = step_logS_off(G.off[is], i_val, S.lambda_I,
+                                S.sigma, dt, sqdt, indiff_xi_sign(b));
+    double inx = step_I(i_val, S.kappa_I, dt, eta_m, sqdt,
+                        indiff_zeta_sign(b));
+    double offc = offn;
+    if (offc < G.off_lo) offc = G.off_lo;
+    if (offc > off_hi)   offc = off_hi;
+    double logs_next = G.logS0 + G.shift[m + 1] + offc;
+    double an = accum_next(a, logs_m, logs_next, G.logS0, S.asian_type,
+                           S.accum_rule, S.monitor_mode, fix_w_m, dt);
+
+    IndiffBracket bs = indiff_bracket(G.off_lo, G.off_dx, G.n_logS, offn);
+    IndiffBracket bi = indiff_bracket(G.I_lo, G.I_dx, G.n_I, inx);
+    IndiffBracket ba = indiff_bracket(G.R_lo, G.R_dx, G.n_R, an);
+    vb[b] = interp5(Vn, G, bs, bi, bq, bj, ba);
+  }
+
+  double g = px * nu + exec_cost(nu, S.k_A, S.k_B, S.psi_cost);
+  return -cash * g + branch_ce(vb, p, S.gamma_ra);
 }
 
 // One backward step, reference path: no caching, one 5-linear interpolation per
@@ -789,10 +924,11 @@ static void backward_step_cached(std::vector<double>& V_curr,
 static void backward_step_reference(std::vector<double>& V_curr,
                                     const std::vector<double>& V_next,
                                     std::vector<double>* policy,
+                                    long long& n_infeas,
                                     const IndiffSpec& S, const IndiffGrids& G,
                                     const std::vector<double>& controls,
                                     int c_zero, double cash,
-                                    int m, double eta_m,
+                                    int m, double eta_m, double fix_w_m,
                                     double dt, double sqdt) {
   const int nc = static_cast<int>(controls.size());
   double p[4];
@@ -807,12 +943,20 @@ static void backward_step_reference(std::vector<double>& V_curr,
     double s_val = std::exp(logs_m);
     for (int ii = 0; ii < G.n_I; ii++) {
       double i_val = G.I[ii];
+
+      // s'_xi for the forward leg of the admissibility test, from the
+      // unclamped offset, exactly as the cached path builds tb.Snext.
+      double s_up = std::exp(G.logS0 + G.shift[m + 1] +
+        step_logS_off(G.off[is], i_val, S.lambda_I, S.sigma, dt, sqdt, 1.0));
+      double s_dn = std::exp(G.logS0 + G.shift[m + 1] +
+        step_logS_off(G.off[is], i_val, S.lambda_I, S.sigma, dt, sqdt, -1.0));
+
       for (int iq = 0; iq < G.n_Q; iq++) {
         double q = G.Q[iq];
         for (int ij = 0; ij < G.n_J; ij++) {
           double j = G.J[ij];
           double px = s_val + S.lambda_bar_P * q + S.lambda_bar_T * j;
-          bool ok = (px > 0.0);
+          bool ok = (px >= S.eps_exec);
           for (int ia = 0; ia < G.n_R; ia++) {
             double a = G.R[ia];
 
@@ -823,38 +967,31 @@ static void backward_step_reference(std::vector<double>& V_curr,
               double nu = controls[c];
               double qn = step_Q(q, nu, dt);
               if (std::abs(qn) > S.Q_bar + q_tol) continue;
-              if (!ok && c != c_zero) continue;
-
+              // note_v2 (21): the execution price must clear eps now, and must
+              // still clear it after one step along both price branches.
+              if (!ok) continue;
               double jn = step_J(j, nu, S.kappa_J, dt);
-              IndiffBracket bq = indiff_bracket(G.Q_lo, G.Q_dx, G.n_Q, qn);
-              IndiffBracket bj = indiff_bracket(G.J_lo, G.J_dx, G.n_J, jn);
+              double pxn = S.lambda_bar_P * qn + S.lambda_bar_T * jn;
+              if (s_up + pxn < S.eps_exec) continue;
+              if (s_dn + pxn < S.eps_exec) continue;
 
-              double vb[4];
-              for (int b = 0; b < 4; b++) {
-                double offn = step_logS_off(G.off[is], i_val, S.lambda_I,
-                                            S.sigma, dt, sqdt,
-                                            indiff_xi_sign(b));
-                double inx = step_I(i_val, S.kappa_I, dt, eta_m, sqdt,
-                                    indiff_zeta_sign(b));
-                double offc = offn;
-                if (offc < G.off_lo) offc = G.off_lo;
-                if (offc > off_hi)   offc = off_hi;
-                double logs_next = G.logS0 + G.shift[m + 1] + offc;
-                double an = accum_next(a, logs_m, logs_next, G.logS0,
-                                       S.asian_type, S.accum_rule, dt);
-
-                IndiffBracket bs =
-                  indiff_bracket(G.off_lo, G.off_dx, G.n_logS, offn);
-                IndiffBracket bi =
-                  indiff_bracket(G.I_lo, G.I_dx, G.n_I, inx);
-                IndiffBracket ba =
-                  indiff_bracket(G.R_lo, G.R_dx, G.n_R, an);
-                vb[b] = interp5(Vn, G, bs, bi, bq, bj, ba);
-              }
-
-              double g = px * nu + exec_cost(nu, S.k_A, S.k_B, S.psi_cost);
-              double cand = -cash * g + branch_ce(vb, p, S.gamma_ra);
+              double cand = cand_reference(Vn, S, G, p, is, m, i_val, logs_m,
+                                           a, px, nu, qn, jn, cash, eta_m,
+                                           fix_w_m, dt, sqdt, off_hi);
               if (cand > best) { best = cand; best_c = c; }
+            }
+
+            if (best == -std::numeric_limits<double>::infinity()) {
+              // Unlike the v1 admissible set, the v2 one can be empty. The
+              // dealer then stands still: nu = 0 executes nothing, so it needs
+              // no execution price. Counted, not silently applied.
+              double nu0 = controls[c_zero];
+              best = cand_reference(Vn, S, G, p, is, m, i_val, logs_m, a, px,
+                                    nu0, step_Q(q, nu0, dt),
+                                    step_J(j, nu0, S.kappa_J, dt), cash,
+                                    eta_m, fix_w_m, dt, sqdt, off_hi);
+              best_c = c_zero;
+              n_infeas++;
             }
 
             size_t id = G.idx(is, ii, iq, ij, ia);
@@ -885,8 +1022,10 @@ static void backward_step_reference(std::vector<double>& V_curr,
 //' @param lambda_bar_T,lambda_bar_P,kappa_J Dealer execution-impact parameters.
 //' @param k_A,k_B,psi_cost Temporary execution cost parameters.
 //' @param gamma_ra Absolute risk aversion.
-//' @param Gamma_Q,Gamma_J Terminal liquidation penalties.
+//' @param Gamma_Q,ell_1 Quadratic and linear terminal liquidation charges on
+//'   inventory. There is no terminal charge on the dealer impact state.
 //' @param Q_bar Inventory bound.
+//' @param eps_exec Execution-price floor of the admissible set.
 //' @param phi_cap Payoff cap; values <= 0 mean no cap.
 //' @param n_opt Option notional.
 //' @param I0,Q0,J0 Initial exogenous impact, inventory and dealer impact state.
@@ -897,6 +1036,11 @@ static void backward_step_reference(std::vector<double>& V_curr,
 //' @param option_type 0 = call, 1 = put.
 //' @param theta -1 (long), 0 (baseline) or +1 (short).
 //' @param accum_rule 0 = left-endpoint, 1 = trapezoidal accumulator quadrature.
+//'   Ignored under discrete monitoring.
+//' @param monitor_mode 0 = continuous monitoring, 1 = discrete fixing dates.
+//' @param fix_w Length-N vector of accumulator weights; entry \code{m} is
+//'   applied at step \code{m} and is non-zero only when \code{t_{m+1}} is a
+//'   fixing date. Used only when \code{monitor_mode = 1}.
 //' @param accum_sd Accumulator grid half-width in standard deviations of the
 //'   running average; capped by the reachable-set bound.
 //' @param grid_drift 1 = let the log-price grid track the deterministic drift.
@@ -919,15 +1063,16 @@ Rcpp::List indiff_bellman_engine_cpp(
     double lambda_bar_T, double lambda_bar_P, double kappa_J,
     double k_A, double k_B, double psi_cost,
     double gamma_ra,
-    double Gamma_Q, double Gamma_J,
-    double Q_bar,
+    double Gamma_Q, double ell_1,
+    double Q_bar, double eps_exec,
     double phi_cap,
     double n_opt,
     double I0, double Q0, double J0,
     Rcpp::NumericVector control_set,
     int n_logS, int n_I, int n_Q, int n_J, int n_R,
     int asian_type, int option_type, int theta,
-    int accum_rule, double accum_sd, int grid_drift,
+    int accum_rule, int monitor_mode, Rcpp::NumericVector fix_w,
+    double accum_sd, int grid_drift,
     bool store_policy, int n_threads, int engine_mode, bool verbose
 ) {
   if (N <= 0) Rcpp::stop("N must be a positive integer");
@@ -937,6 +1082,8 @@ Rcpp::List indiff_bellman_engine_cpp(
     Rcpp::stop("mu_vec must have length N");
   if (static_cast<int>(eta_vec.size()) != N)
     Rcpp::stop("eta_vec must have length N");
+  if (static_cast<int>(fix_w.size()) != N)
+    Rcpp::stop("fix_w must have length N");
   if (n_I < 2 || n_Q < 2 || n_J < 2 || n_R < 2 || (n_logS > 0 && n_logS < 2))
     Rcpp::stop("all grid sizes must be at least 2");
   if (control_set.size() < 1)
@@ -944,6 +1091,7 @@ Rcpp::List indiff_bellman_engine_cpp(
 
   std::vector<double> mu(mu_vec.begin(), mu_vec.end());
   std::vector<double> eta(eta_vec.begin(), eta_vec.end());
+  std::vector<double> fixw(fix_w.begin(), fix_w.end());
   std::vector<double> controls(control_set.begin(), control_set.end());
   const int nc = static_cast<int>(controls.size());
 
@@ -962,13 +1110,15 @@ Rcpp::List indiff_bellman_engine_cpp(
   S.lambda_bar_T = lambda_bar_T; S.lambda_bar_P = lambda_bar_P;
   S.kappa_J = kappa_J;
   S.k_A = k_A; S.k_B = k_B; S.psi_cost = psi_cost;
-  S.gamma_ra = gamma_ra; S.Gamma_Q = Gamma_Q; S.Gamma_J = Gamma_J;
-  S.Q_bar = Q_bar; S.phi_cap = phi_cap; S.n_opt = n_opt;
+  S.gamma_ra = gamma_ra; S.Gamma_Q = Gamma_Q; S.ell_1 = ell_1;
+  S.Q_bar = Q_bar; S.eps_exec = eps_exec;
+  S.phi_cap = phi_cap; S.n_opt = n_opt;
   S.I0 = I0; S.Q0 = Q0; S.J0 = J0;
   S.asian_type = asian_type; S.option_type = option_type; S.theta = theta;
-  S.accum_rule = accum_rule; S.accum_sd = accum_sd; S.grid_drift = grid_drift;
+  S.accum_rule = accum_rule; S.monitor_mode = monitor_mode;
+  S.accum_sd = accum_sd; S.grid_drift = grid_drift;
 
-  IndiffGrids G = build_grids(S, mu, eta, controls,
+  IndiffGrids G = build_grids(S, mu, eta, fixw, controls,
                               n_logS, n_I, n_Q, n_J, n_R);
   // build_grids may enlarge n_logS to align it with the shock, enlarge n_R by
   // one so that a = 0 stays on the grid, and collapse n_I when lambda_I == 0.
@@ -1011,7 +1161,8 @@ Rcpp::List indiff_bellman_engine_cpp(
     path_logS[m + 1] = G.logS0 + G.shift[m + 1] + offn;
     path_I[m + 1]    = step_I(path_I[m], kappa_I, dt, eta[m], sqdt, 0.0);
     path_A[m + 1]    = accum_next(path_A[m], path_logS[m], path_logS[m + 1],
-                                  G.logS0, asian_type, accum_rule, dt);
+                                  G.logS0, asian_type, accum_rule,
+                                  monitor_mode, fixw[m], dt);
   }
   std::vector<double> pol_slice;
   if (store_policy)
@@ -1020,17 +1171,25 @@ Rcpp::List indiff_bellman_engine_cpp(
   ClampCount cc;
   StepTables tb;
 
+  // One slot per (log-price, impact) plane, written only by the worker that
+  // owns the plane, so the count is thread-count independent like everything
+  // else in the sweep.
+  std::vector<long long> infeas(static_cast<size_t>(G.n_logS) * G.n_I, 0);
+  long long n_infeasible = 0;
+
   for (int m = N - 1; m >= 0; m--) {
     double cash = indiff_beta(r_cont, T_mat, m * dt) * delta_r;
 
     if (engine_mode == 1) {
       backward_step_reference(V_curr, V_next, store_policy ? &policy : NULL,
-                              S, G, controls, c_zero, cash, m, eta[m],
-                              dt, sqdt);
+                              n_infeasible, S, G, controls, c_zero, cash,
+                              m, eta[m], fixw[m], dt, sqdt);
     } else {
-      build_step_tables(tb, S, G, controls, m, eta[m], dt, sqdt, cc);
+      build_step_tables(tb, S, G, controls, m, eta[m], fixw[m], dt, sqdt, cc);
       backward_step_cached(V_curr, V_next, store_policy ? &policy : NULL,
-                           S, G, tb, controls, c_zero, cash, n_threads);
+                           infeas, S, G, tb, controls, c_zero, cash,
+                           n_threads);
+      for (size_t pl = 0; pl < infeas.size(); pl++) n_infeasible += infeas[pl];
     }
 
     if (store_policy) {
@@ -1097,6 +1256,7 @@ Rcpp::List indiff_bellman_engine_cpp(
     Rcpp::Named("shock_cells")  = G.shock_cells,
     Rcpp::Named("grid_aligned") = G.aligned,
     Rcpp::Named("collapsed_I")  = G.collapsed_I,
+    Rcpp::Named("n_infeasible") = static_cast<double>(n_infeasible),
     Rcpp::Named("initial_state_interior") =
       !(bs0.clamped || bi0.clamped || bq0.clamped || bj0.clamped || ba0.clamped)
   );

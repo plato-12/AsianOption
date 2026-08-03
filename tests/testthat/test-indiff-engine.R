@@ -91,20 +91,22 @@ test_that("terminal payoff matches the closed form and honours the cap", {
 # --- engine-level checks -----------------------------------------------------
 
 tiny <- function(theta, mode = 0L, lambda_I = 0, n_I = 5L, n_threads = 0L,
-                 gamma = 0.05, rho = 0.3) {
-  ctrl <- c(-2, -1, 0, 1, 2)
+                 gamma = 0.05, rho = 0.3, ell_1 = 0, eps_exec = 0,
+                 monitor_mode = 0L, fix_w = rep(0, 5), ctrl = c(-2, -1, 0, 1, 2),
+                 Q_bar = 3, lambda_bar_P = 0.025, lambda_bar_T = 0.05) {
   indiff_bellman_engine_cpp(
     S0 = 100, K = 100, T_mat = 1, N = 5L,
     mu_vec = rep(0.05, 5), sigma = 0.2, r_cont = 0.05,
     lambda_I = lambda_I, kappa_I = 1, eta_vec = rep(0.3, 5), rho = rho,
-    lambda_bar_T = 0.05, lambda_bar_P = 0.025, kappa_J = 1,
+    lambda_bar_T = lambda_bar_T, lambda_bar_P = lambda_bar_P, kappa_J = 1,
     k_A = 0.4, k_B = 0.4, psi_cost = 1,
-    gamma_ra = gamma, Gamma_Q = 1, Gamma_J = 0.1,
-    Q_bar = 3, phi_cap = -1, n_opt = 1,
+    gamma_ra = gamma, Gamma_Q = 1, ell_1 = ell_1,
+    Q_bar = Q_bar, eps_exec = eps_exec, phi_cap = -1, n_opt = 1,
     I0 = 0, Q0 = 0, J0 = 0, control_set = ctrl,
     n_logS = 0L, n_I = n_I, n_Q = 7L, n_J = 7L, n_R = 11L,
     asian_type = 1L, option_type = 0L, theta = theta,
-    accum_rule = 1L, accum_sd = 5, grid_drift = 1L,
+    accum_rule = 1L, monitor_mode = monitor_mode, fix_w = fix_w,
+    accum_sd = 5, grid_drift = 1L,
     store_policy = FALSE, n_threads = n_threads, engine_mode = mode,
     verbose = FALSE
   )
@@ -129,6 +131,78 @@ test_that("the cached path reproduces the reference path with lambda_I != 0", {
     b <- tiny(theta, mode = 0L, lambda_I = 0.3)
     expect_equal(a$value, b$value, tolerance = 1e-12)
   }
+})
+
+test_that("the two paths agree under each note_v2 feature", {
+  # The M2 acceptance criterion, re-run over the features note_v2 adds: the
+  # linear terminal charge, the forward-looking execution-price floor, and
+  # discrete monitoring.  A change to one code path that is not mirrored in the
+  # other shows up here.
+  variants <- list(
+    ell_1     = list(ell_1 = 0.5),
+    eps_bind  = list(eps_exec = 101, lambda_bar_P = 1.5, Q_bar = 3),
+    discrete  = list(monitor_mode = 1L,
+                     fix_w = c(0, 1 / 2, 0, 0, 1 / 2)),
+    combined  = list(ell_1 = 0.3, eps_exec = 99, monitor_mode = 1L,
+                     fix_w = rep(1 / 5, 5))
+  )
+  for (nm in names(variants)) {
+    for (theta in c(-1L, 0L, 1L)) {
+      args <- c(list(theta = theta), variants[[nm]])
+      a <- do.call(tiny, c(args, list(mode = 1L)))
+      b <- do.call(tiny, c(args, list(mode = 0L)))
+      expect_equal(a$value, b$value, tolerance = 1e-12,
+                   info = paste(nm, "theta =", theta))
+      expect_equal(a$n_infeasible, b$n_infeasible, info = nm)
+    }
+  }
+})
+
+test_that("the linear terminal charge is exactly ell_1 * |Q_T|", {
+  # A dealer who cannot trade holds Q0 = 0 to maturity, so ell_1 must not bite.
+  frozen <- function(ell_1) {
+    tiny(0L, ctrl = 0, ell_1 = ell_1)$value
+  }
+  expect_equal(frozen(0.7), frozen(0), tolerance = 1e-12)
+
+  # Sitting on a non-zero inventory it must, and by exactly ell_1 * |q|: the
+  # charge is deterministic, so the certainty equivalent shifts one for one.
+  # theta = 0 with no trading makes the whole problem deterministic in q.
+  with_q <- function(ell_1, Q0) {
+    indiff_bellman_engine_cpp(
+      S0 = 100, K = 100, T_mat = 1, N = 3L,
+      mu_vec = rep(0, 3), sigma = 0.2, r_cont = 0,
+      lambda_I = 0, kappa_I = 1, eta_vec = rep(0, 3), rho = 0,
+      lambda_bar_T = 0, lambda_bar_P = 0, kappa_J = 1,
+      k_A = 0, k_B = 0, psi_cost = 1,
+      gamma_ra = 1e-8, Gamma_Q = 0, ell_1 = ell_1,
+      Q_bar = 3, eps_exec = 0, phi_cap = -1, n_opt = 1,
+      I0 = 0, Q0 = Q0, J0 = 0, control_set = 0,
+      n_logS = 0L, n_I = 5L, n_Q = 7L, n_J = 5L, n_R = 11L,
+      asian_type = 1L, option_type = 0L, theta = 0L,
+      accum_rule = 1L, monitor_mode = 0L, fix_w = rep(0, 3),
+      accum_sd = 5, grid_drift = 1L, store_policy = FALSE,
+      n_threads = 1L, engine_mode = 0L, verbose = FALSE
+    )$value
+  }
+  expect_equal(with_q(0, 2) - with_q(0.25, 2), 0.25 * 2, tolerance = 1e-8)
+  expect_equal(with_q(0, -2) - with_q(0.25, -2), 0.25 * 2, tolerance = 1e-8)
+})
+
+test_that("the execution-price floor removes controls and is reported", {
+  # lambda_bar_P = 1.5 makes the execution price 100 + 1.5q, so a floor just
+  # above 100 rules out every q < 0 node and the trades that would reach one.
+  loose <- tiny(1L, eps_exec = 0,   lambda_bar_P = 1.5)
+  tight <- tiny(1L, eps_exec = 101, lambda_bar_P = 1.5)
+
+  expect_equal(loose$n_infeasible, 0)
+  expect_gt(tight$n_infeasible, 0)
+  expect_false(isTRUE(all.equal(loose$value, tight$value)))
+
+  # The count is a property of the problem, not of the schedule.
+  expect_equal(tiny(1L, eps_exec = 101, lambda_bar_P = 1.5,
+                    n_threads = 1L)$n_infeasible,
+               tight$n_infeasible)
 })
 
 test_that("results do not depend on the thread count", {
@@ -167,29 +241,25 @@ test_that("a = 0 and the initial state stay on the grid", {
 })
 
 test_that("the engine rejects malformed arguments", {
-  expect_error(tiny_bad <- indiff_bellman_engine_cpp(
-    S0 = 100, K = 100, T_mat = 1, N = 5L, mu_vec = rep(0.05, 3),
-    sigma = 0.2, r_cont = 0.05, lambda_I = 0, kappa_I = 1,
-    eta_vec = rep(0.3, 5), rho = 0, lambda_bar_T = 0, lambda_bar_P = 0,
-    kappa_J = 1, k_A = 0, k_B = 0, psi_cost = 1, gamma_ra = 0.1,
-    Gamma_Q = 0, Gamma_J = 0, Q_bar = 3, phi_cap = -1, n_opt = 1,
-    I0 = 0, Q0 = 0, J0 = 0, control_set = c(-1, 0, 1),
-    n_logS = 0L, n_I = 5L, n_Q = 5L, n_J = 5L, n_R = 11L,
-    asian_type = 1L, option_type = 0L, theta = 0L, accum_rule = 1L,
-    accum_sd = 5, grid_drift = 1L, store_policy = FALSE, n_threads = 0L,
-    engine_mode = 0L, verbose = FALSE), "mu_vec must have length N")
+  bad <- function(...) {
+    args <- list(
+      S0 = 100, K = 100, T_mat = 1, N = 5L, mu_vec = rep(0.05, 5),
+      sigma = 0.2, r_cont = 0.05, lambda_I = 0, kappa_I = 1,
+      eta_vec = rep(0.3, 5), rho = 0, lambda_bar_T = 0, lambda_bar_P = 0,
+      kappa_J = 1, k_A = 0, k_B = 0, psi_cost = 1, gamma_ra = 0.1,
+      Gamma_Q = 0, ell_1 = 0, Q_bar = 3, eps_exec = 0, phi_cap = -1,
+      n_opt = 1, I0 = 0, Q0 = 0, J0 = 0, control_set = c(-1, 0, 1),
+      n_logS = 0L, n_I = 5L, n_Q = 5L, n_J = 5L, n_R = 11L,
+      asian_type = 1L, option_type = 0L, theta = 0L, accum_rule = 1L,
+      monitor_mode = 0L, fix_w = rep(0, 5), accum_sd = 5, grid_drift = 1L,
+      store_policy = FALSE, n_threads = 0L, engine_mode = 0L, verbose = FALSE
+    )
+    do.call(indiff_bellman_engine_cpp, utils::modifyList(args, list(...)))
+  }
 
-  expect_error(indiff_bellman_engine_cpp(
-    S0 = 100, K = 100, T_mat = 1, N = 5L, mu_vec = rep(0.05, 5),
-    sigma = 0.2, r_cont = 0.05, lambda_I = 0, kappa_I = 1,
-    eta_vec = rep(0.3, 5), rho = 0, lambda_bar_T = 0, lambda_bar_P = 0,
-    kappa_J = 1, k_A = 0, k_B = 0, psi_cost = 1, gamma_ra = 0.1,
-    Gamma_Q = 0, Gamma_J = 0, Q_bar = 3, phi_cap = -1, n_opt = 1,
-    I0 = 0, Q0 = 0, J0 = 0, control_set = c(-1, 1),
-    n_logS = 0L, n_I = 5L, n_Q = 5L, n_J = 5L, n_R = 11L,
-    asian_type = 1L, option_type = 0L, theta = 0L, accum_rule = 1L,
-    accum_sd = 5, grid_drift = 1L, store_policy = FALSE, n_threads = 0L,
-    engine_mode = 0L, verbose = FALSE), "control_set must contain 0")
+  expect_error(bad(mu_vec = rep(0.05, 3)), "mu_vec must have length N")
+  expect_error(bad(control_set = c(-1, 1)), "control_set must contain 0")
+  expect_error(bad(fix_w = rep(0, 3)), "fix_w must have length N")
 })
 
 test_that("with no option and no inventory the baseline value is exactly zero", {

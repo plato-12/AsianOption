@@ -1,8 +1,8 @@
 Package: AsianOption
 Type: Package
 Title: Asian Option Pricing under Price Impact
-Version: 0.3.0
-Date: 2026-07-25
+Version: 0.4.0
+Date: 2026-08-03
 Authors@R: c(
     person("Priyanshu", "Tiwari",
            email = "tiwari.priyanshu.iitk@gmail.com",
