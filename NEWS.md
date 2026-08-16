@@ -1,3 +1,34 @@
+# AsianOption 0.4.1
+
+## The arithmetic accumulator grid now tracks its own distribution
+
+`a = int_0^T (S_u / S_0) du` is not a log-scale quantity, but its grid was being
+sized as `[0, T * exp(drift + k * sd)]` — the log-return bound, exponentiated.
+That inflated the span, while the hard floor `a >= 0` anchored the grid many
+standard deviations below where the mass is. At `sigma = 0.10` the result was an
+accumulator cell about **2.2 times wider** than the geometric one at the same
+`n_R`, making the low-volatility arithmetic quotes the least well resolved in
+the table: the arithmetic spread came out *below* the geometric spread, which
+the greater variance of the arithmetic average rules out.
+
+The grid is now sized from the moments of the arithmetic average itself — the
+discrete counterpart of the Turnbull-Wakeman / Kemna-Vorst arithmetic-Asian
+moments, computed with the engine's own quadrature weights so it is exact for a
+time-varying `mu`, either `accum_rule`, and discrete monitoring. Its origin
+tracks the accumulator's mean path per step, exactly as `grid_drift` already
+does for the log-price grid, so the width has only to span the spread rather
+than the level. The arithmetic cell now matches the geometric one to within a
+few per cent at every volatility, and boundary clamping in the accumulator falls
+(3.1% to 2.3% at the base case).
+
+**Arithmetic quotes change.** They are better resolved, not merely different: at
+`n_R = 121` the new grid reproduces what the old grid needed `n_R = 265` to
+reach. **Geometric quotes are bit-identical** — the geometric branch is
+untouched and its origin shift is identically zero.
+
+The new `accum_center` argument (default `TRUE`) switches this off, restoring
+the previous grid for reproducing earlier numbers.
+
 # AsianOption 0.4.0
 
 ## Indifference engine updated to the revised model specification

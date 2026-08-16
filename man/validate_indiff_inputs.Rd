@@ -40,6 +40,7 @@ validate_indiff_inputs(
   n_J,
   n_R,
   accum_sd,
+  accum_center = TRUE,
   monitoring = "continuous",
   n_fixings = NULL
 )
@@ -100,6 +101,9 @@ validate_indiff_inputs(
 \item{n_logS, n_I, n_Q, n_J, n_R}{Grid sizes.}
 
 \item{accum_sd}{Accumulator grid half-width in standard deviations.}
+
+\item{accum_center}{Whether the arithmetic accumulator grid tracks its own
+mean path.}
 
 \item{monitoring}{\code{"continuous"} or \code{"discrete"}.}
 

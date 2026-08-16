@@ -121,6 +121,40 @@ double indiff_payoff_cpp(double a, double S0, double K, double T_mat,
   return indiff_payoff(a, S0, K, T_mat, asian_type, option_type, phi_cap);
 }
 
+//' Moments of the arithmetic accumulator used to size its grid
+//'
+//' Mean path and terminal standard deviation of
+//' \eqn{a_t = \int_0^t (S_u/S_0)\,du} as the engine discretises it. Exposed so
+//' that the tests can check it against the continuous Turnbull-Wakeman
+//' arithmetic-Asian moments.
+//'
+//' @param N Number of time steps.
+//' @param dt Step size.
+//' @param mu Length-N vector of price drifts.
+//' @param sigma Volatility.
+//' @param accum_rule 0 = left-endpoint, 1 = trapezoidal.
+//' @param monitor_mode 0 = continuous, 1 = discrete fixing dates.
+//' @param fix_w Length-N vector of accumulator weights.
+//' @return A list with the quadrature weights, the mean path and the terminal
+//'   standard deviation.
+//' @keywords internal
+// [[Rcpp::export]]
+Rcpp::List indiff_accum_moments_cpp(int N, double dt, Rcpp::NumericVector mu,
+                                    double sigma, int accum_rule,
+                                    int monitor_mode, Rcpp::NumericVector fix_w) {
+  std::vector<double> mu_vec = Rcpp::as<std::vector<double> >(mu);
+  std::vector<double> fw     = Rcpp::as<std::vector<double> >(fix_w);
+  std::vector<double> c = indiff_accum_weights(N, dt, accum_rule,
+                                               monitor_mode, fw);
+  IndiffAccumMoments M = indiff_accum_moments(N, dt, mu_vec, sigma, accum_rule,
+                                              monitor_mode, fw);
+  return Rcpp::List::create(
+    Rcpp::Named("weights") = c,
+    Rcpp::Named("mean")    = M.mean,
+    Rcpp::Named("sd")      = M.sd
+  );
+}
+
 //' Report the RcppParallel backend used by the indifference engine
 //'
 //' @return \code{"tbb"} when the Intel TBB backend is active, or
@@ -252,11 +286,13 @@ struct IndiffSpec {
   int monitor_mode;     // 0 = continuous, 1 = discrete fixing dates
   double accum_sd;      // accumulator half-width in sd of the running average
   int grid_drift;       // 1 = log-price grid tracks the deterministic drift
+  int accum_center;     // 1 = accumulator grid tracks its own mean path
 };
 
 struct IndiffGrids {
   std::vector<double> off;     // log-price grid offsets, [-margin, margin]
   std::vector<double> shift;   // length N+1 grid origin displacement
+  std::vector<double> R_shift; // length N+1 accumulator origin displacement
   std::vector<double> I, Q, J, R;
   double logS0;
   double off_lo, off_dx;
@@ -279,6 +315,16 @@ struct IndiffGrids {
   // Absolute log price of node is at step m.
   double logS_at(int m, int is) const {
     return logS0 + shift[static_cast<size_t>(m)] + off[static_cast<size_t>(is)];
+  }
+  // Absolute accumulator value of node ia at step m.  R_shift is identically
+  // zero unless the arithmetic accumulator grid is tracking its mean path, so
+  // every other configuration reduces to R[ia] bit for bit.
+  double R_at(int m, int ia) const {
+    return R[static_cast<size_t>(ia)] + R_shift[static_cast<size_t>(m)];
+  }
+  // Lower edge of the accumulator grid at step m, for indiff_bracket.
+  double R_lo_at(int m) const {
+    return R_lo + R_shift[static_cast<size_t>(m)];
   }
 };
 
@@ -462,7 +508,44 @@ static IndiffGrids build_grids(const IndiffSpec& S,
   double reach = (mu_absmax + std::abs(S.lambda_I) * I_bound) * S.T_mat
                + 4.0 * S.sigma * std::sqrt(S.T_mat);
   if (reach < margin) reach = margin;
-  if (S.asian_type == 0) {
+
+  // R_shift displaces the accumulator origin per step, exactly as shift[] does
+  // for the log-price grid.  It is left at zero except for the arithmetic
+  // accumulator under accum_center, so every other configuration reproduces the
+  // pre-0.4.1 grid bit for bit.
+  G.R_shift.assign(static_cast<size_t>(S.N) + 1, 0.0);
+
+  if (S.asian_type == 0 && S.accum_center == 1) {
+    // The arithmetic accumulator is a = int (S_u/S0) du, not a log-scale
+    // quantity, so exponentiating the log-return bound is the wrong scale for
+    // it: it inflates the span while a >= 0 anchors the grid many standard
+    // deviations below where the mass is.  At sigma = 0.10 that left the cell
+    // 2.2 times wider than the geometric one at the same n_R, which is what
+    // made the low-volatility arithmetic quotes the least well resolved in the
+    // table.  Size the grid from the accumulator's own moments instead, and
+    // carry its mean path in the origin so the width has only to cover the
+    // spread.  Since sd(a_{t_m}) grows in m, the terminal half-width covers
+    // every earlier step, and a constant width keeps R_dx step-independent.
+    IndiffAccumMoments AM = indiff_accum_moments(S.N, dt, mu_vec, S.sigma,
+                                                 S.accum_rule, S.monitor_mode,
+                                                 fix_w);
+
+    // The lambda_I channel is absent from the moments (they use mu alone), so
+    // widen by the displacement it can add: |d log S| <= |lambda_I|*I_bound*T
+    // over the whole path, hence |da| <~ that times the mean level of a.
+    double hw = k_sd * AM.sd
+              + std::abs(S.lambda_I) * I_bound * S.T_mat
+                  * AM.mean[static_cast<size_t>(S.N)];
+    if (hw <= 0.0) hw = 0.5 * S.T_mat;
+    // Reach-based hard cap, as before: never wider than the reachable set.
+    double hw_cap = 0.5 * std::exp(reach) * S.T_mat;
+    if (hw > hw_cap) hw = hw_cap;
+
+    for (int m = 0; m <= S.N; m++)
+      G.R_shift[static_cast<size_t>(m)] = AM.mean[static_cast<size_t>(m)];
+    R_lo = -hw;                            // offsets about the mean path
+    R_hi =  hw;
+  } else if (S.asian_type == 0) {
     R_lo = 0.0;                            // a = int (S_u/S0) du >= 0
     R_hi = std::min(std::exp(reach) * S.T_mat,
                     S.T_mat * std::exp(drift_a + k_sd * sd_a));
@@ -497,7 +580,7 @@ static void fill_terminal(std::vector<double>& V, const IndiffSpec& S,
         double base = q * s - S.ell_1 * std::abs(q) - 0.5 * S.Gamma_Q * q * q;
         for (int ij = 0; ij < G.n_J; ij++) {
           for (int ia = 0; ia < G.n_R; ia++) {
-            double phi = indiff_payoff(G.R[ia], S.S0, S.K, S.T_mat,
+            double phi = indiff_payoff(G.R_at(S.N, ia), S.S0, S.K, S.T_mat,
                                        S.asian_type, S.option_type, S.phi_cap);
             V[G.idx(is, ii, iq, ij, ia)] = base - S.theta * S.n_opt * phi;
           }
@@ -580,10 +663,10 @@ static void build_step_tables(StepTables& tb, const IndiffSpec& S,
         double logs_next = G.logS0 + G.shift[m + 1] + offc;
 
         for (int ia = 0; ia < G.n_R; ia++) {
-          double an = accum_next(G.R[ia], logs_m, logs_next, G.logS0,
+          double an = accum_next(G.R_at(m, ia), logs_m, logs_next, G.logS0,
                                  S.asian_type, S.accum_rule, S.monitor_mode,
                                  fix_w_m, dt);
-          IndiffBracket ba = indiff_bracket(G.R_lo, G.R_dx, G.n_R, an);
+          IndiffBracket ba = indiff_bracket(G.R_lo_at(m + 1), G.R_dx, G.n_R, an);
           tb.brA[((static_cast<size_t>(is) * G.n_I + ii) * G.n_R + ia) * 2
                  + xi_idx] = ba;
           cc.R_tot++; if (ba.clamped) cc.R++;
@@ -911,7 +994,7 @@ static inline double cand_reference(const double* Vn, const IndiffSpec& S,
 
     IndiffBracket bs = indiff_bracket(G.off_lo, G.off_dx, G.n_logS, offn);
     IndiffBracket bi = indiff_bracket(G.I_lo, G.I_dx, G.n_I, inx);
-    IndiffBracket ba = indiff_bracket(G.R_lo, G.R_dx, G.n_R, an);
+    IndiffBracket ba = indiff_bracket(G.R_lo_at(m + 1), G.R_dx, G.n_R, an);
     vb[b] = interp5(Vn, G, bs, bi, bq, bj, ba);
   }
 
@@ -958,7 +1041,7 @@ static void backward_step_reference(std::vector<double>& V_curr,
           double px = s_val + S.lambda_bar_P * q + S.lambda_bar_T * j;
           bool ok = (px >= S.eps_exec);
           for (int ia = 0; ia < G.n_R; ia++) {
-            double a = G.R[ia];
+            double a = G.R_at(m, ia);
 
             double best = -std::numeric_limits<double>::infinity();
             int best_c = c_zero;
@@ -1044,6 +1127,9 @@ static void backward_step_reference(std::vector<double>& V_curr,
 //' @param accum_sd Accumulator grid half-width in standard deviations of the
 //'   running average; capped by the reachable-set bound.
 //' @param grid_drift 1 = let the log-price grid track the deterministic drift.
+//' @param accum_center 1 = size the arithmetic accumulator grid from its own
+//'   moments and let its origin track its mean path. 0 restores the pre-0.4.1
+//'   grid \code{[0, T exp(drift + k sd)]}. No effect on the geometric payoff.
 //' @param store_policy Whether to return optimal-policy paths.
 //' @param n_threads Worker threads for the cached path; 0 or less lets
 //'   RcppParallel choose, and 1 runs the backward sweep serially.
@@ -1072,7 +1158,7 @@ Rcpp::List indiff_bellman_engine_cpp(
     int n_logS, int n_I, int n_Q, int n_J, int n_R,
     int asian_type, int option_type, int theta,
     int accum_rule, int monitor_mode, Rcpp::NumericVector fix_w,
-    double accum_sd, int grid_drift,
+    double accum_sd, int grid_drift, int accum_center,
     bool store_policy, int n_threads, int engine_mode, bool verbose
 ) {
   if (N <= 0) Rcpp::stop("N must be a positive integer");
@@ -1117,6 +1203,7 @@ Rcpp::List indiff_bellman_engine_cpp(
   S.asian_type = asian_type; S.option_type = option_type; S.theta = theta;
   S.accum_rule = accum_rule; S.monitor_mode = monitor_mode;
   S.accum_sd = accum_sd; S.grid_drift = grid_drift;
+  S.accum_center = accum_center;
 
   IndiffGrids G = build_grids(S, mu, eta, fixw, controls,
                               n_logS, n_I, n_Q, n_J, n_R);
@@ -1196,7 +1283,7 @@ Rcpp::List indiff_bellman_engine_cpp(
       IndiffBracket bs = indiff_bracket(G.off_lo, G.off_dx, G.n_logS,
                                         path_off[m]);
       IndiffBracket bi = indiff_bracket(G.I_lo, G.I_dx, G.n_I, path_I[m]);
-      IndiffBracket ba = indiff_bracket(G.R_lo, G.R_dx, G.n_R, path_A[m]);
+      IndiffBracket ba = indiff_bracket(G.R_lo_at(m), G.R_dx, G.n_R, path_A[m]);
       double ws = bs.w, wi = bi.w, wa = ba.w;
       double* out = &pol_slice[static_cast<size_t>(m) * n_Q * n_J];
       for (int iq = 0; iq < n_Q; iq++) {
@@ -1228,12 +1315,14 @@ Rcpp::List indiff_bellman_engine_cpp(
   }
 
   // Value at the initial state (s0, I0, Q0, J0, a0 = 0).  With grid_drift the
-  // time-0 origin is logS0, so the offset coordinate is exactly 0.
+  // time-0 origin is logS0, so the offset coordinate is exactly 0.  Likewise
+  // R_shift[0] = 0 under accum_center, so a0 = 0 is the centre node of the
+  // time-0 accumulator grid rather than its lower edge.
   IndiffBracket bs0 = indiff_bracket(G.off_lo, G.off_dx, G.n_logS, 0.0);
   IndiffBracket bi0 = indiff_bracket(G.I_lo, G.I_dx, G.n_I, I0);
   IndiffBracket bq0 = indiff_bracket(G.Q_lo, G.Q_dx, G.n_Q, Q0);
   IndiffBracket bj0 = indiff_bracket(G.J_lo, G.J_dx, G.n_J, J0);
-  IndiffBracket ba0 = indiff_bracket(G.R_lo, G.R_dx, G.n_R, 0.0);
+  IndiffBracket ba0 = indiff_bracket(G.R_lo_at(0), G.R_dx, G.n_R, 0.0);
   double value = interp5(V_next.data(), G, bs0, bi0, bq0, bj0, ba0);
 
   std::vector<double> logS_grid0(static_cast<size_t>(G.n_logS));
@@ -1247,6 +1336,7 @@ Rcpp::List indiff_bellman_engine_cpp(
     Rcpp::Named("Q_grid")    = G.Q,
     Rcpp::Named("J_grid")    = G.J,
     Rcpp::Named("R_grid")    = G.R,
+    Rcpp::Named("R_shift")   = G.R_shift,
     Rcpp::Named("margin")    = G.margin,
     Rcpp::Named("I_bound")   = G.I_bound,
     Rcpp::Named("J_bound")   = G.J_bound,

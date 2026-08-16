@@ -46,6 +46,7 @@ price_arithmetic_asian_indiff(
   n_fixings = NULL,
   accum_sd = 5,
   grid_drift = TRUE,
+  accum_center = TRUE,
   store_policy = FALSE,
   n_threads = 0,
   engine_mode = c("cached", "reference"),
@@ -152,6 +153,14 @@ running average, capped by the reachable-set bound.}
 
 \item{grid_drift}{If \code{TRUE} (default) the log-price grid tracks the
 deterministic drift so the drift is never interpolated.}
+
+\item{accum_center}{If \code{TRUE} (default) the arithmetic accumulator grid
+is sized from the moments of \eqn{\int_0^T (S_u/S_0)\,du} and its origin
+tracks that accumulator's mean path, so the grid has only to span the
+spread. \code{FALSE} restores the pre-0.4.1 grid \eqn{[0, T e^{d + k s}]},
+which is on a log scale the arithmetic average does not live on and which
+made the arithmetic cell about twice the geometric one at low volatility.
+Ignored for the geometric payoff, whose grid is unaffected either way.}
 
 \item{store_policy}{If \code{TRUE}, return optimal trading-rate and state
 paths along the zero-shock trajectory.}

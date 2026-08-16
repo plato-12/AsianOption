@@ -34,6 +34,8 @@
 #' @param control_set Numeric vector of admissible trading rates.
 #' @param n_logS,n_I,n_Q,n_J,n_R Grid sizes.
 #' @param accum_sd Accumulator grid half-width in standard deviations.
+#' @param accum_center Whether the arithmetic accumulator grid tracks its own
+#'   mean path.
 #' @param monitoring \code{"continuous"} or \code{"discrete"}.
 #' @param n_fixings Number of fixing dates when monitoring is discrete.
 #'
@@ -47,6 +49,7 @@ validate_indiff_inputs <- function(S0, K, T, N, sigma, r_cont, mu,
                                    Q_bar, nu_bar, eps_exec, phi_cap, n_options,
                                    I0, Q0, J0, control_set,
                                    n_logS, n_I, n_Q, n_J, n_R, accum_sd,
+                                   accum_center = TRUE,
                                    monitoring = "continuous",
                                    n_fixings = NULL) {
 
@@ -170,6 +173,11 @@ validate_indiff_inputs <- function(S0, K, T, N, sigma, r_cont, mu,
 
   if (!is.numeric(accum_sd) || length(accum_sd) != 1 || accum_sd <= 0) {
     stop("accum_sd must be positive")
+  }
+
+  if (!is.logical(accum_center) || length(accum_center) != 1 ||
+      is.na(accum_center)) {
+    stop("accum_center must be TRUE or FALSE")
   }
 
   # Discrete monitoring places the fixings at t_k = k T / M. Requiring M to

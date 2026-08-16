@@ -97,6 +97,27 @@ indiff_payoff_cpp <- function(a, S0, K, T_mat, asian_type, option_type, phi_cap)
     .Call(`_AsianOption_indiff_payoff_cpp`, a, S0, K, T_mat, asian_type, option_type, phi_cap)
 }
 
+#' Moments of the arithmetic accumulator used to size its grid
+#'
+#' Mean path and terminal standard deviation of
+#' \eqn{a_t = \int_0^t (S_u/S_0)\,du} as the engine discretises it. Exposed so
+#' that the tests can check it against the continuous Turnbull-Wakeman
+#' arithmetic-Asian moments.
+#'
+#' @param N Number of time steps.
+#' @param dt Step size.
+#' @param mu Length-N vector of price drifts.
+#' @param sigma Volatility.
+#' @param accum_rule 0 = left-endpoint, 1 = trapezoidal.
+#' @param monitor_mode 0 = continuous, 1 = discrete fixing dates.
+#' @param fix_w Length-N vector of accumulator weights.
+#' @return A list with the quadrature weights, the mean path and the terminal
+#'   standard deviation.
+#' @keywords internal
+indiff_accum_moments_cpp <- function(N, dt, mu, sigma, accum_rule, monitor_mode, fix_w) {
+    .Call(`_AsianOption_indiff_accum_moments_cpp`, N, dt, mu, sigma, accum_rule, monitor_mode, fix_w)
+}
+
 #' Report the RcppParallel backend used by the indifference engine
 #'
 #' @return \code{"tbb"} when the Intel TBB backend is active, or
@@ -144,6 +165,9 @@ indiff_parallel_backend_cpp <- function() {
 #' @param accum_sd Accumulator grid half-width in standard deviations of the
 #'   running average; capped by the reachable-set bound.
 #' @param grid_drift 1 = let the log-price grid track the deterministic drift.
+#' @param accum_center 1 = size the arithmetic accumulator grid from its own
+#'   moments and let its origin track its mean path. 0 restores the pre-0.4.1
+#'   grid \code{[0, T exp(drift + k sd)]}. No effect on the geometric payoff.
 #' @param store_policy Whether to return optimal-policy paths.
 #' @param n_threads Worker threads for the cached path; 0 or less lets
 #'   RcppParallel choose, and 1 runs the backward sweep serially.
@@ -152,8 +176,8 @@ indiff_parallel_backend_cpp <- function() {
 #' @return A list with the value at the initial state, the grids, clamp
 #'   diagnostics and (optionally) forward policy paths.
 #' @keywords internal
-indiff_bellman_engine_cpp <- function(S0, K, T_mat, N, mu_vec, sigma, r_cont, lambda_I, kappa_I, eta_vec, rho, lambda_bar_T, lambda_bar_P, kappa_J, k_A, k_B, psi_cost, gamma_ra, Gamma_Q, ell_1, Q_bar, eps_exec, phi_cap, n_opt, I0, Q0, J0, control_set, n_logS, n_I, n_Q, n_J, n_R, asian_type, option_type, theta, accum_rule, monitor_mode, fix_w, accum_sd, grid_drift, store_policy, n_threads, engine_mode, verbose) {
-    .Call(`_AsianOption_indiff_bellman_engine_cpp`, S0, K, T_mat, N, mu_vec, sigma, r_cont, lambda_I, kappa_I, eta_vec, rho, lambda_bar_T, lambda_bar_P, kappa_J, k_A, k_B, psi_cost, gamma_ra, Gamma_Q, ell_1, Q_bar, eps_exec, phi_cap, n_opt, I0, Q0, J0, control_set, n_logS, n_I, n_Q, n_J, n_R, asian_type, option_type, theta, accum_rule, monitor_mode, fix_w, accum_sd, grid_drift, store_policy, n_threads, engine_mode, verbose)
+indiff_bellman_engine_cpp <- function(S0, K, T_mat, N, mu_vec, sigma, r_cont, lambda_I, kappa_I, eta_vec, rho, lambda_bar_T, lambda_bar_P, kappa_J, k_A, k_B, psi_cost, gamma_ra, Gamma_Q, ell_1, Q_bar, eps_exec, phi_cap, n_opt, I0, Q0, J0, control_set, n_logS, n_I, n_Q, n_J, n_R, asian_type, option_type, theta, accum_rule, monitor_mode, fix_w, accum_sd, grid_drift, accum_center, store_policy, n_threads, engine_mode, verbose) {
+    .Call(`_AsianOption_indiff_bellman_engine_cpp`, S0, K, T_mat, N, mu_vec, sigma, r_cont, lambda_I, kappa_I, eta_vec, rho, lambda_bar_T, lambda_bar_P, kappa_J, k_A, k_B, psi_cost, gamma_ra, Gamma_Q, ell_1, Q_bar, eps_exec, phi_cap, n_opt, I0, Q0, J0, control_set, n_logS, n_I, n_Q, n_J, n_R, asian_type, option_type, theta, accum_rule, monitor_mode, fix_w, accum_sd, grid_drift, accum_center, store_policy, n_threads, engine_mode, verbose)
 }
 
 price_kemna_vorst_arithmetic_cpp <- function(S0, K, r, sigma, T0, T_mat, n, M, option_type = "call", use_control_variate = TRUE, seed = 0L) {

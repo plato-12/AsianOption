@@ -93,6 +93,8 @@ test_that("the validator enforces minimum grid sizes", {
   expect_error(bad(n_R = 4), "n_R must be an integer of at least 5")
   expect_error(bad(n_logS = 4), "n_logS must be an integer of at least 5")
   expect_error(bad(accum_sd = 0), "accum_sd must be positive")
+  expect_error(bad(accum_center = NA), "accum_center must be TRUE or FALSE")
+  expect_error(bad(accum_center = 1), "accum_center must be TRUE or FALSE")
 })
 
 test_that("the validator warns about unstable Euler updates", {

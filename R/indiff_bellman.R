@@ -68,7 +68,7 @@
                          control_set, n_controls,
                          n_logS, n_I, n_Q, n_J, n_R,
                          option_type, accum_rule, monitoring, n_fixings,
-                         accum_sd, grid_drift,
+                         accum_sd, grid_drift, accum_center,
                          store_policy, n_threads, engine_mode, verbose,
                          validate) {
 
@@ -95,7 +95,8 @@
       n_options = n_options, I0 = I0, Q0 = Q0, J0 = J0,
       control_set = control_set,
       n_logS = n_logS, n_I = n_I, n_Q = n_Q, n_J = n_J, n_R = n_R,
-      accum_sd = accum_sd, monitoring = monitoring, n_fixings = n_fixings
+      accum_sd = accum_sd, accum_center = accum_center,
+      monitoring = monitoring, n_fixings = n_fixings
     )
   }
 
@@ -141,6 +142,7 @@
       fix_w = fix_w,
       accum_sd = accum_sd,
       grid_drift = if (isTRUE(grid_drift)) 1L else 0L,
+      accum_center = if (isTRUE(accum_center)) 1L else 0L,
       store_policy = isTRUE(store),
       n_threads = as.integer(n_threads),
       engine_mode = if (engine_mode == "cached") 0L else 1L,
@@ -226,7 +228,8 @@
       n_threads = .indiff_resolve_threads(n_threads),
       grids = list(logS = res0$logS_grid, logS_shift = res0$logS_shift,
                    I = res0$I_grid, Q = res0$Q_grid,
-                   J = res0$J_grid, R = res0$R_grid)
+                   J = res0$J_grid, R = res0$R_grid,
+                   R_shift = res0$R_shift)
     ),
     params = list(
       S0 = S0, K = K, T = T, N = N, sigma = sigma, r_cont = r_cont,
@@ -239,6 +242,7 @@
       accum_rule = accum_rule, monitoring = monitoring,
       n_fixings = if (monitoring == "discrete") as.integer(n_fixings) else NULL,
       accum_sd = accum_sd, grid_drift = grid_drift,
+      accum_center = accum_center,
       engine_mode = engine_mode
     ),
     grid_sizes = list(
@@ -384,6 +388,13 @@
 #'   running average, capped by the reachable-set bound.
 #' @param grid_drift If \code{TRUE} (default) the log-price grid tracks the
 #'   deterministic drift so the drift is never interpolated.
+#' @param accum_center If \code{TRUE} (default) the arithmetic accumulator grid
+#'   is sized from the moments of \eqn{\int_0^T (S_u/S_0)\,du} and its origin
+#'   tracks that accumulator's mean path, so the grid has only to span the
+#'   spread. \code{FALSE} restores the pre-0.4.1 grid \eqn{[0, T e^{d + k s}]},
+#'   which is on a log scale the arithmetic average does not live on and which
+#'   made the arithmetic cell about twice the geometric one at low volatility.
+#'   Ignored for the geometric payoff, whose grid is unaffected either way.
 #' @param store_policy If \code{TRUE}, return optimal trading-rate and state
 #'   paths along the zero-shock trajectory.
 #' @param n_threads Number of RcppParallel worker threads used by the backward
@@ -440,7 +451,7 @@ price_arithmetic_asian_indiff <- function(
     option_type = c("call", "put"),
     accum_rule = c("trapezoid", "left"),
     monitoring = c("continuous", "discrete"), n_fixings = NULL,
-    accum_sd = 5, grid_drift = TRUE,
+    accum_sd = 5, grid_drift = TRUE, accum_center = TRUE,
     store_policy = FALSE, n_threads = 0,
     engine_mode = c("cached", "reference"),
     verbose = FALSE, validate = TRUE) {
@@ -456,7 +467,7 @@ price_arithmetic_asian_indiff <- function(
                control_set, n_controls,
                n_logS, n_I, n_Q, n_J, n_R,
                option_type, accum_rule, monitoring, n_fixings,
-               accum_sd, grid_drift,
+               accum_sd, grid_drift, accum_center,
                store_policy, n_threads, engine_mode, verbose, validate)
 }
 
@@ -503,7 +514,7 @@ price_geometric_asian_indiff <- function(
     option_type = c("call", "put"),
     accum_rule = c("trapezoid", "left"),
     monitoring = c("continuous", "discrete"), n_fixings = NULL,
-    accum_sd = 5, grid_drift = TRUE,
+    accum_sd = 5, grid_drift = TRUE, accum_center = TRUE,
     store_policy = FALSE, n_threads = 0,
     engine_mode = c("cached", "reference"),
     verbose = FALSE, validate = TRUE) {
@@ -521,7 +532,7 @@ price_geometric_asian_indiff <- function(
                control_set, n_controls,
                n_logS, n_I, n_Q, n_J, n_R,
                option_type, accum_rule, monitoring, n_fixings,
-               accum_sd, grid_drift,
+               accum_sd, grid_drift, accum_center,
                store_policy, n_threads, engine_mode, verbose, validate)
 }
 

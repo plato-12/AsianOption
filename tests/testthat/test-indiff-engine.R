@@ -106,7 +106,7 @@ tiny <- function(theta, mode = 0L, lambda_I = 0, n_I = 5L, n_threads = 0L,
     n_logS = 0L, n_I = n_I, n_Q = 7L, n_J = 7L, n_R = 11L,
     asian_type = 1L, option_type = 0L, theta = theta,
     accum_rule = 1L, monitor_mode = monitor_mode, fix_w = fix_w,
-    accum_sd = 5, grid_drift = 1L,
+    accum_sd = 5, grid_drift = 1L, accum_center = 1L,
     store_policy = FALSE, n_threads = n_threads, engine_mode = mode,
     verbose = FALSE
   )
@@ -181,7 +181,7 @@ test_that("the linear terminal charge is exactly ell_1 * |Q_T|", {
       n_logS = 0L, n_I = 5L, n_Q = 7L, n_J = 5L, n_R = 11L,
       asian_type = 1L, option_type = 0L, theta = 0L,
       accum_rule = 1L, monitor_mode = 0L, fix_w = rep(0, 3),
-      accum_sd = 5, grid_drift = 1L, store_policy = FALSE,
+      accum_sd = 5, grid_drift = 1L, accum_center = 1L, store_policy = FALSE,
       n_threads = 1L, engine_mode = 0L, verbose = FALSE
     )$value
   }
@@ -252,6 +252,7 @@ test_that("the engine rejects malformed arguments", {
       n_logS = 0L, n_I = 5L, n_Q = 5L, n_J = 5L, n_R = 11L,
       asian_type = 1L, option_type = 0L, theta = 0L, accum_rule = 1L,
       monitor_mode = 0L, fix_w = rep(0, 5), accum_sd = 5, grid_drift = 1L,
+      accum_center = 1L,
       store_policy = FALSE, n_threads = 0L, engine_mode = 0L, verbose = FALSE
     )
     do.call(indiff_bellman_engine_cpp, utils::modifyList(args, list(...)))
@@ -266,4 +267,97 @@ test_that("with no option and no inventory the baseline value is exactly zero", 
   # With Q0 = J0 = 0 and costly, risky trading, standing still is optimal and
   # terminal wealth is identically zero, so v^0 = 0 to the last bit.
   expect_equal(tiny(0L)$value, 0)
+})
+
+# --- accumulator moments and the mean-tracking accumulator grid -------------
+
+test_that("accumulator moments match the continuous Turnbull-Wakeman form", {
+  # a_T = int_0^T (S_u/S0) du under dS/S = mu dt + sigma dW has
+  #   E[a_T]   = (e^{mu T} - 1)/mu
+  #   E[a_T^2] = (2/b)[(e^{c T} - 1)/c - (e^{mu T} - 1)/mu],
+  # with b = mu + sigma^2 and c = 2 mu + sigma^2.  The engine's discrete
+  # trapezoidal moments must converge to these as N grows.
+  T <- 1; mu <- 0.05
+  for (sigma in c(0.10, 0.20, 0.40)) {
+    b <- mu + sigma^2
+    cc <- 2 * mu + sigma^2
+    m1 <- (exp(mu * T) - 1) / mu
+    m2 <- (2 / b) * ((exp(cc * T) - 1) / cc - (exp(mu * T) - 1) / mu)
+    sd_cont <- sqrt(m2 - m1^2)
+
+    N <- 200L
+    got <- indiff_accum_moments_cpp(N = N, dt = T / N, mu = rep(mu, N),
+                                    sigma = sigma, accum_rule = 1L,
+                                    monitor_mode = 0L, fix_w = rep(0, N))
+    expect_equal(got$mean[N + 1L], m1, tolerance = 1e-5)
+    expect_equal(got$sd, sd_cont, tolerance = 1e-4)
+  }
+})
+
+test_that("the accumulator mean path starts at zero and uses the engine's rule", {
+  N <- 8L; T <- 1; dt <- T / N; mu <- 0.05
+  for (rule in c(0L, 1L)) {
+    got <- indiff_accum_moments_cpp(N = N, dt = dt, mu = rep(mu, N),
+                                    sigma = 0.2, accum_rule = rule,
+                                    monitor_mode = 0L, fix_w = rep(0, N))
+    # a_0 = 0 exactly: the engine starts the accumulator there, so the grid
+    # origin must too.
+    expect_equal(got$mean[1], 0)
+    expect_length(got$mean, N + 1L)
+    expect_true(all(diff(got$mean) > 0))
+
+    # The mean path is the recursion accum_next() runs, not a partial sum of
+    # the terminal weights: under the trapezoid rule the first step advances
+    # by dt/2 * (E X_0 + E X_1), not by the terminal weight dt.
+    EX <- exp(mu * (0:N) * dt)
+    step1 <- if (rule == 0L) EX[1] * dt else 0.5 * (EX[1] + EX[2]) * dt
+    expect_equal(got$mean[2], step1)
+
+    # At maturity the mean path does agree with the terminal weights: left
+    # endpoint puts dt on nodes 0..N-1, trapezoid puts dt/2 on both ends.
+    w <- if (rule == 0L) c(rep(dt, N), 0) else c(dt / 2, rep(dt, N - 1L), dt / 2)
+    expect_equal(got$weights, w)
+    expect_equal(got$mean[N + 1L], sum(w * EX))
+  }
+})
+
+test_that("accum_center narrows the arithmetic accumulator grid, not the geometric", {
+  args <- list(S0 = 100, K = 100, T = 1, N = 10, sigma = 0.10, r_cont = 0.05,
+               lambda_I = 0, n_I = 5, n_Q = 7, n_J = 5, n_R = 41,
+               n_controls = 5, n_threads = 1)
+  ar_on  <- do.call(price_arithmetic_asian_indiff, c(args, accum_center = TRUE))
+  ar_off <- do.call(price_arithmetic_asian_indiff, c(args, accum_center = FALSE))
+  ge_on  <- do.call(price_geometric_asian_indiff,  c(args, accum_center = TRUE))
+  ge_off <- do.call(price_geometric_asian_indiff,  c(args, accum_center = FALSE))
+
+  R_on  <- ar_on$diagnostics$grids$R
+  R_off <- ar_off$diagnostics$grids$R
+  sh    <- ar_on$diagnostics$grids$R_shift
+
+  # a_0 = 0 sits on the time-0 origin, and the origin ends at E[a_T] > 0.
+  expect_equal(sh[1], 0)
+  expect_gt(sh[length(sh)], 0)
+  expect_equal(R_on[1], -R_on[length(R_on)])      # offsets about the mean path
+
+  # The whole point: a finer cell at the same n_R.
+  expect_lt(diff(R_on)[1], diff(R_off)[1])
+
+  # The geometric payoff is untouched -- bit-identical, not merely close.
+  expect_identical(ge_on$diagnostics$grids$R, ge_off$diagnostics$grids$R)
+  expect_true(all(ge_on$diagnostics$grids$R_shift == 0))
+  expect_identical(ge_on$bid_price, ge_off$bid_price)
+  expect_identical(ge_on$ask_price, ge_off$ask_price)
+})
+
+test_that("the mean-tracking accumulator restores the spread ordering at low sigma", {
+  # The arithmetic average is the more variable of the two, so hedging it must
+  # be the wider-spread side.  On the pre-0.4.1 grid the arithmetic cell was
+  # about twice the geometric one at sigma = 0.10 and the ordering inverted;
+  # this is the regression test for that.
+  args <- list(S0 = 100, K = 100, T = 1, N = 25, sigma = 0.10, r_cont = 0.05,
+               lambda_I = 0, n_I = 5, n_Q = 11, n_J = 5, n_R = 121,
+               n_controls = 5, n_threads = 0)
+  ar <- do.call(price_arithmetic_asian_indiff, c(args, accum_center = TRUE))
+  ge <- do.call(price_geometric_asian_indiff,  c(args, accum_center = TRUE))
+  expect_gt(ar$spread, ge$spread)
 })

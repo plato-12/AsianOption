@@ -46,6 +46,7 @@ indiff_bellman_engine_cpp(
   fix_w,
   accum_sd,
   grid_drift,
+  accum_center,
   store_policy,
   n_threads,
   engine_mode,
@@ -108,6 +109,10 @@ fixing date. Used only when \code{monitor_mode = 1}.}
 running average; capped by the reachable-set bound.}
 
 \item{grid_drift}{1 = let the log-price grid track the deterministic drift.}
+
+\item{accum_center}{1 = size the arithmetic accumulator grid from its own
+moments and let its origin track its mean path. 0 restores the pre-0.4.1
+grid \code{[0, T exp(drift + k sd)]}. No effect on the geometric payoff.}
 
 \item{store_policy}{Whether to return optimal-policy paths.}
 
