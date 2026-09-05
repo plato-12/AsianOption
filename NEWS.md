@@ -1,5 +1,54 @@
 # AsianOption 0.4.1
 
+## The exogenous-diffusion arithmetic average now includes the terminal fixing
+
+`price_arithmetic_asian_diffusion()` accumulated the average as a left-endpoint
+Riemann sum, `(1/N) * sum_{m=0}^{N-1} S(t_m)`: it kept the initial fixing `S_0`
+but dropped the terminal fixing `S_T`. Its own geometric control-variate leg,
+and the frictionless benchmark `price_kemna_vorst_arithmetic()`, both average
+all `N + 1` fixings including `S_T`, so the routine was inconsistent with itself
+and not comparable with the benchmark. Under common random numbers the gap was
+about **-0.25%** at the base case (`S0 = K = 100`, `T = 1`, `sigma = 0.2`,
+`r = 0.05`, `N = 252`) -- roughly fifteen standard errors, so not Monte Carlo
+noise -- and it was being reported as price impact at `lambda_T = 0`, where by
+construction there is none.
+
+The average is now the discretely monitored `A_T = (1/(N+1)) * sum_{m=0}^{N}
+S(t_m)`, matching both the geometric leg and the Kemna-Vorst benchmark.
+**Exported arithmetic diffusion prices move by roughly +0.25%.**
+
+## The price and impact shocks now come from separate random streams
+
+The same routine drew the price shock and the impact shock alternately from one
+stream, two normals per step. That coupled two things that should not have been
+coupled, and it is why the fix above was not on its own enough to make the
+measured impact at `lambda_T = 0` read exactly zero.
+
+The two shocks are now drawn from two separate streams, both reproducible from
+`seed`. The price stream is therefore exactly `n_steps` draws per path, in path
+order, whatever the impact parameters are, and two properties hold at once:
+
+* At `lambda_T = 0` the price shocks are the same draws, in the same order,
+  that `price_kemna_vorst_arithmetic()` takes. Under a common seed the two
+  routines walk the same paths and agree to floating-point rounding, so the
+  measured impact at `lambda_T = 0` is exactly `0.000`.
+* Across a sweep in `lambda_T` the price shocks are unchanged, so a difference
+  of two prices in the sweep is a genuine common-random-numbers difference.
+
+Interleaving the shocks in one stream gives up the first property; drawing the
+impact shock only when it can matter -- the obvious way to get the first --
+gives up the second, and silently: the impact premium is a difference of order
+`0.003` between two prices of order `10`, so losing the variance cancellation
+turns it into noise. At `sigma = 0.40` it came out at `-0.0062` against an exact
+geometric counterpart of `+0.0020`. With separate streams the arithmetic
+premium runs `+0.0067, +0.0049, +0.0039, +0.0035, +0.0029, +0.0026, +0.0024`
+across `sigma = 0.10 ... 0.40`, just above the exact geometric premium at every
+point, as it should be.
+
+**Prices at `lambda_T > 0` change**, because the impact shocks are now
+different draws. The change is a resampling, not a bias: it is within Monte
+Carlo error at any given `n_sims`.
+
 ## The arithmetic accumulator grid now tracks its own distribution
 
 `a = int_0^T (S_u / S_0) du` is not a log-scale quantity, but its grid was being

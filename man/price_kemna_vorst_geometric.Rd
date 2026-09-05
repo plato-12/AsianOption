@@ -12,8 +12,10 @@ Must be positive.}
 
 \item{K}{Numeric. Strike price. Must be positive.}
 
-\item{r}{Numeric. Gross risk-free interest rate per period (e.g., 1.05 for 5%).
-Must be positive.}
+\item{r}{Numeric. Continuously compounded risk-free rate (e.g., 0.05 for 5%),
+the same convention as the diffusion and utility-indifference pricers. Note
+that this differs from the binomial functions in the package, which take a
+gross per-period rate such as 1.05. May be zero or negative.}
 
 \item{sigma}{Numeric. Volatility (annualized standard deviation). Must be
 non-negative.}

@@ -7,8 +7,10 @@
 #' @param S0 Numeric. Initial stock price at time T0 (start of averaging period).
 #'   Must be positive.
 #' @param K Numeric. Strike price. Must be positive.
-#' @param r Numeric. Gross risk-free interest rate per period (e.g., 1.05 for 5%).
-#'   Must be positive.
+#' @param r Numeric. Continuously compounded risk-free rate (e.g., 0.05 for 5%),
+#'   the same convention as the diffusion and utility-indifference pricers. Note
+#'   that this differs from the binomial functions in the package, which take a
+#'   gross per-period rate such as 1.05. May be zero or negative.
 #' @param sigma Numeric. Volatility (annualized standard deviation). Must be
 #'   non-negative.
 #' @param T0 Numeric. Start time of averaging period. Must be non-negative.
@@ -102,6 +104,9 @@ price_kemna_vorst_geometric <- function(S0, K, r, sigma, T0, T_mat,
   return(exp(-r * tau) * payoff)
 }
 
+# Binomial-parameterised wrapper.  Unlike price_kemna_vorst_geometric() above,
+# `r` here IS a gross per-period rate (1.05 for 5%), matching the rest of the
+# binomial family; log(r) converts it before delegating.
 price_kemna_vorst_geometric_binomial <- function(S0, K, r, u, d, n,
                                                    option_type = "call") {
 

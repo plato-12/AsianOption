@@ -90,8 +90,17 @@ stock price dynamics are:
 where \eqn{W} and \eqn{W^I} are Brownian motions with instantaneous
 correlation \eqn{\rho}.
 
-The arithmetic Asian payoff is \eqn{\Phi_A(Y_T) = (Y_T/T - K)^+} where
-\eqn{Y_t = \int_0^t S_u\, du}.
+The arithmetic Asian payoff is \eqn{\Phi_A(A_T) = (A_T - K)^+}, where the
+average is **discretely monitored** over the \eqn{N + 1} fixings
+\eqn{t_m = m \Delta t}, \eqn{m = 0, \ldots, N}:
+
+\deqn{A_T = \frac{1}{N + 1} \sum_{m = 0}^{N} S_{t_m}.}
+
+Both the initial fixing \eqn{S_0} and the terminal fixing \eqn{S_T} are
+included. This is the same convention used by the geometric control-variate
+leg of this routine and by \code{\link{price_kemna_vorst_arithmetic}}, so
+the two are directly comparable; as \eqn{N \to \infty} it converges to the
+continuously monitored average \eqn{Y_T/T} with \eqn{Y_t = \int_0^t S_u\, du}.
 
 The Euler-Maruyama scheme discretises the SDEs on a uniform grid with step
 \eqn{\Delta t = T/N}. The log-Euler method is used for \eqn{S} to ensure
@@ -100,6 +109,27 @@ positivity.
 When \code{use_control_variate = TRUE}, the geometric Asian diffusion
 closed-form from \code{\link{price_geometric_asian_diffusion}} is used as
 a control variate, which typically reduces the standard error substantially.
+
+The price shock \eqn{W} and the impact shock \eqn{W^I} are drawn from two
+separate random streams, both reproducible from \code{seed}. The price
+stream is therefore exactly \code{n_steps} draws per path, in path order,
+whatever the impact parameters are, and two things follow that callers
+depend on:
+\itemize{
+  \item At \code{lambda_T = 0} the price shocks are the same draws, in the
+    same order, that \code{\link{price_kemna_vorst_arithmetic}} takes, so
+    under a common seed the two routines walk the same paths and their
+    prices agree to floating-point rounding. The measured price impact at
+    \code{lambda_T = 0} is exactly zero rather than a residual discrepancy.
+  \item Across a sweep in \code{lambda_T} the price shocks are unchanged, so
+    a difference of two prices in the sweep is a common-random-numbers
+    difference and the Monte Carlo error in it is an order of magnitude
+    below the error in either level.
+}
+
+Interleaving the two shocks in a single stream gives up the first property;
+drawing the impact shock only when it can matter gives up the second. Only
+separate streams give both.
 }
 \examples{
 # Basic call pricing
